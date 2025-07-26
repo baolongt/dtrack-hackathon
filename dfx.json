@@ -8,7 +8,8 @@
     "dtrack_frontend": {
       "source": ["src/dtrack_frontend/dist"],
       "type": "assets",
-      "workspace": "dtrack_frontend"
+      "workspace": "dtrack_frontend",
+      "specified_id": "j3ikr-giaaa-aaaak-qukua-cai"
     },
     "icp_ledger_canister": {
       "type": "custom",
@@ -33,5 +34,19 @@
     }
   },
   "output_env_file": ".env",
-  "version": 1
+  "version": 1,
+  "networks": {
+    "ic": {
+      "type": "persistent",
+      "providers": ["https://icp0.io"]
+    },
+    "dev": {
+      "type": "persistent",
+      "providers": ["https://icp0.io"]
+    },
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral"
+    }
+  }
 }

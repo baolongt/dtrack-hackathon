@@ -8,6 +8,8 @@ import tailwindcss from "@tailwindcss/vite";
 
 dotenv.config({ path: "../../.env" });
 
+process.env.II_URL = `https://identity.ic0.app`;
+
 export default defineConfig({
   build: {
     emptyOutDir: true,
@@ -38,5 +40,6 @@ export default defineConfig({
     environment("all", { prefix: "CANISTER_" }),
     environment("all", { prefix: "DFX_" }),
     tailwindcss(),
+    environment(["II_URL"]),
   ],
 });
