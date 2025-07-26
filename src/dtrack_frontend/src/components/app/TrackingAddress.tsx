@@ -8,51 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-interface TrackedAddress {
-  id: string;
-  address: string;
-  label: string;
-  balance: number;
-  isActive: boolean;
-  dateAdded: string;
-}
-
-// Mock tracked addresses data
-const mockTrackedAddresses: TrackedAddress[] = [
-  {
-    id: "addr_001",
-    address: "1A2B3C4D5E6F7G8H9I0J",
-    label: "Main Wallet",
-    balance: 15420.75,
-    isActive: true,
-    dateAdded: "2025-07-20",
-  },
-  {
-    id: "addr_002",
-    address: "9Z8Y7X6W5V4U3T2S1R0Q",
-    label: "Trading Account",
-    balance: 8932.5,
-    isActive: true,
-    dateAdded: "2025-07-18",
-  },
-  {
-    id: "addr_003",
-    address: "5M4N3B2V1C6X7Z8A9S0D",
-    label: "Cold Storage",
-    balance: 45678.9,
-    isActive: false,
-    dateAdded: "2025-07-15",
-  },
-  {
-    id: "addr_004",
-    address: "3Q2W1E4R5T6Y7U8I9O0P",
-    label: "DeFi Protocol",
-    balance: 2156.25,
-    isActive: true,
-    dateAdded: "2025-07-12",
-  },
-];
+import { TrackedAddress, mockTrackedAddresses } from "@/mocks/tx.mock";
 
 export function TrackingAddress() {
   const [addresses, setAddresses] =

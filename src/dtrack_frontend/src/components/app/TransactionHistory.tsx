@@ -9,66 +9,14 @@ import {
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { mockData } from "@/mocks/tx.mock";
-
-interface Transaction {
-  id: string;
-  date: string;
-  amount: number;
-  type: "received" | "sent";
-  address: string;
-  status: "completed" | "pending" | "failed";
-}
-
-// Mock transaction data - you can replace this with real data later
-const mockTransactions: Transaction[] = [
-  {
-    id: "tx_001",
-    date: "2025-07-26",
-    amount: 1250.5,
-    type: "received",
-    address: "1A2B3C4D5E6F7G8H9I0J",
-    status: "completed",
-  },
-  {
-    id: "tx_002",
-    date: "2025-07-25",
-    amount: 750.25,
-    type: "sent",
-    address: "9Z8Y7X6W5V4U3T2S1R0Q",
-    status: "completed",
-  },
-  {
-    id: "tx_003",
-    date: "2025-07-24",
-    amount: 2100.0,
-    type: "received",
-    address: "5M4N3B2V1C6X7Z8A9S0D",
-    status: "pending",
-  },
-  {
-    id: "tx_004",
-    date: "2025-07-23",
-    amount: 500.75,
-    type: "sent",
-    address: "3Q2W1E4R5T6Y7U8I9O0P",
-    status: "failed",
-  },
-  {
-    id: "tx_005",
-    date: "2025-07-22",
-    amount: 3200.4,
-    type: "received",
-    address: "7F6G5H4J3K2L1Z9X8C7V",
-    status: "completed",
-  },
-];
+import { Transaction, mockTransactions } from "@/mocks/tx.mock";
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
@@ -99,12 +47,13 @@ export function TransactionHistory() {
         </CardHeader>
         <CardContent>
           <Table>
+            <TableCaption>A list of your recent transactions.</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>Transaction ID</TableHead>
+                <TableHead className="w-[120px]">Transaction ID</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -112,7 +61,7 @@ export function TransactionHistory() {
             <TableBody>
               {mockTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
-                  <TableCell className="font-mono text-sm">
+                  <TableCell className="font-mono text-sm font-medium">
                     {transaction.id}
                   </TableCell>
                   <TableCell>
@@ -123,7 +72,7 @@ export function TransactionHistory() {
                       {transaction.type}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-semibold">
+                  <TableCell className="text-right font-semibold">
                     ${transaction.amount.toLocaleString()}
                   </TableCell>
                   <TableCell className="font-mono text-sm">
