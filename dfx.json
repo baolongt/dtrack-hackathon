@@ -6,12 +6,8 @@
       "type": "rust"
     },
     "dtrack_frontend": {
-      "dependencies": [
-        "dtrack_backend"
-      ],
-      "source": [
-        "src/dtrack_frontend/dist"
-      ],
+      "dependencies": ["dtrack_backend"],
+      "source": ["src/dtrack_frontend/dist"],
       "type": "assets",
       "workspace": "dtrack_frontend"
     },
@@ -25,15 +21,23 @@
       },
       "type": "custom",
       "wasm": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity_dev.wasm.gz"
+    },
+    "icp_ledger_canister": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ledger.did",
+      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ledger-canister_notify-method.wasm.gz"
+    },
+    "icp_index_canister": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/index.did",
+      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ic-icp-index-canister.wasm.gz"
     }
   },
   "defaults": {
     "bitcoin": {
       "enabled": true,
       "log_level": "info",
-      "nodes": [
-        "127.0.0.1:18444"
-      ]
+      "nodes": ["127.0.0.1:18444"]
     },
     "build": {
       "args": "",

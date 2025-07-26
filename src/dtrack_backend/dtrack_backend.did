@@ -1,3 +1,24 @@
-service : {
-    "greet": (text) -> (text) query;
+type Account = record { owner : principal; subaccount : opt blob };
+type CreateLabeledAddressRequest = record { label : text; address : Account };
+type LabeledAddressError = variant {
+  AddressAlreadyExists;
+  Unauthorized;
+  AddressNotFound;
+  InvalidLabel;
+};
+type LabeledAddressResponse = record {
+  updated_at : nat64;
+  created_at : nat64;
+  label : text;
+  address : Account;
+};
+type Result = variant {
+  Ok : LabeledAddressResponse;
+  Err : LabeledAddressError;
+};
+service : () -> {
+  create_labeled_address : (CreateLabeledAddressRequest) -> (Result);
+  delete_labeled_address : (Account) -> (Result);
+  get_all_labeled_addresses : () -> (vec LabeledAddressResponse) query;
+  get_labeled_address : (Account) -> (Result) query;
 }

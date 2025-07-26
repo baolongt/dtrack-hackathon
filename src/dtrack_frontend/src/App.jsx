@@ -1,30 +1,100 @@
-import { useState } from 'react';
-import { dtrack_backend } from 'declarations/dtrack_backend';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  useLocation,
+} from "react-router-dom";
+import {
+  TransactionChartTabs,
+  TransactionDataChartLine,
+} from "./components/app/Chart";
+import { TransactionHistory } from "./components/app/TransactionHistory";
+import { TrackingAddress } from "./components/app/TrackingAddress";
 
-function App() {
-  const [greeting, setGreeting] = useState('');
+// Navigation component
+function Navigation() {
+  const location = useLocation();
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    const name = event.target.elements.name.value;
-    dtrack_backend.greet(name).then((greeting) => {
-      setGreeting(greeting);
-    });
-    return false;
-  }
+  const navItems = [
+    { path: "/", label: "Dashboard Overview", key: "dashboard" },
+    { path: "/history", label: "Transaction History", key: "history" },
+    { path: "/tracking", label: "Tracking Address", key: "tracking" },
+    { path: "/analytics", label: "Analytics", key: "analytics" },
+  ];
 
   return (
-    <main>
-      <img src="/logo2.svg" alt="DFINITY logo" />
-      <br />
-      <br />
-      <form action="#" onSubmit={handleSubmit}>
-        <label htmlFor="name">Enter your name: &nbsp;</label>
-        <input id="name" alt="Name" type="text" />
-        <button type="submit">Click Me!</button>
-      </form>
-      <section id="greeting">{greeting}</section>
-    </main>
+    <aside className="w-[30%] bg-card rounded-lg border p-6">
+      <h2 className="text-lg font-semibold mb-4">Navigation</h2>
+      <div className="space-y-2">
+        {navItems.map((item) => (
+          <Link
+            key={item.key}
+            to={item.path}
+            className={`block p-3 rounded-md text-sm transition-colors ${
+              location.pathname === item.path
+                ? "bg-muted/50 text-foreground"
+                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+// Main content component
+function MainContent() {
+  return (
+    <section className="w-[70%]">
+      <Routes>
+        <Route path="/" element={<TransactionChartTabs />} />
+        <Route path="/history" element={<TransactionHistory />} />
+        <Route path="/tracking" element={<TrackingAddress />} />
+        <Route
+          path="/analytics"
+          element={
+            <div className="bg-card rounded-lg border p-6">
+              <h2 className="text-lg font-semibold mb-4">Analytics</h2>
+              <p className="text-muted-foreground">
+                Analytics features coming soon...
+              </p>
+            </div>
+          }
+        />
+      </Routes>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="w-full border-b bg-card shadow-sm">
+          <div className="container mx-auto px-4 py-4">
+            <h1 className="text-2xl font-bold text-foreground">
+              DTrack Dashboard
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Track and analyze your transactions
+            </p>
+          </div>
+        </header>
+
+        {/* Main Content Layout */}
+        <main className="container mx-auto px-4 py-6">
+          <div className="flex gap-6 min-h-[calc(100vh-120px)]">
+            <Navigation />
+            <MainContent />
+          </div>
+        </main>
+      </div>
+    </Router>
   );
 }
 
