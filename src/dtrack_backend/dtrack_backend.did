@@ -1,24 +1,12 @@
 type Account = record { owner : principal; subaccount : opt blob };
-type CreateLabeledAddressRequest = record { label : text; address : Account };
-type LabeledAddressError = variant {
-  AddressAlreadyExists;
-  Unauthorized;
-  AddressNotFound;
-  InvalidLabel;
-};
-type LabeledAddressResponse = record {
-  updated_at : nat64;
-  created_at : nat64;
-  label : text;
-  address : Account;
-};
-type Result = variant {
-  Ok : LabeledAddressResponse;
-  Err : LabeledAddressError;
-};
-service : () -> {
-  create_labeled_address : (CreateLabeledAddressRequest) -> (Result);
-  delete_labeled_address : (Account) -> (Result);
-  get_all_labeled_addresses : () -> (vec LabeledAddressResponse) query;
-  get_labeled_address : (Account) -> (Result) query;
+type CreateLabeledAccountRequest = record { label : text; address : Account };
+type LabeledAccount = record { label : text; account : Account };
+type Result = variant { Ok : LabeledAccount; Err : text };
+type Result_1 = variant { Ok; Err : text };
+type Result_2 = variant { Ok : vec LabeledAccount; Err : text };
+service : {
+  create_labeled_account : (CreateLabeledAccountRequest) -> (Result);
+  delete_labeled_account : (Account) -> (Result_1);
+  get_labeled_accounts : () -> (Result_2) query;
+  update_labeled_account : (CreateLabeledAccountRequest) -> (Result_1);
 }
