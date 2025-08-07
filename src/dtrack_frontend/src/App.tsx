@@ -12,7 +12,7 @@ import {
   TransactionDataChartLine,
 } from "./components/app/Chart";
 import { TransactionHistory } from "./components/app/TransactionHistory";
-import { TrackingAddress } from "./components/app/TrackingAddress";
+import { LabeledAccounts } from "./components/app/LabeledAccounts";
 import { FinancialOverview } from "./components/app/FinancialOverview";
 import { WebAnalytics } from "./components/app/WebAnalytics";
 import { LoginButton } from "./components/auth/LoginButton";
@@ -30,12 +30,12 @@ function Navigation() {
   const navItems = [
     { path: "/", label: "Dashboard Overview", key: "dashboard" },
     { path: "/history", label: "Transaction History", key: "history" },
-    { path: "/tracking", label: "Tracking Address", key: "tracking" },
+    { path: "/accounts", label: "Accounts", key: "tracking" },
     { path: "/analytics", label: "Analytics", key: "analytics" },
   ];
 
   return (
-    <aside className="w-[30%] bg-card rounded-lg border p-6">
+    <aside className="w-[20%] bg-card rounded-lg border p-6">
       <h2 className="text-lg font-semibold mb-4">Navigation</h2>
       <div className="space-y-2">
         {navItems.map((item) => (
@@ -103,7 +103,7 @@ function MainContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/history" element={<TransactionHistory />} />
-        <Route path="/tracking" element={<TrackingAddress />} />
+        <Route path="/accounts" element={<LabeledAccounts />} />
         <Route path="/analytics" element={<WebAnalytics />} />
       </Routes>
     </section>

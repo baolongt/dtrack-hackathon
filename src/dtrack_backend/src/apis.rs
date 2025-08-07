@@ -5,13 +5,13 @@ use ic_cdk::api::msg_caller;
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct CreateLabeledAccountRequest {
-    pub address: Account,
+    pub account: Account,
     pub label: String,
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct UpdateLabeledAccountRequest {
-    pub address: Account,
+    pub account: Account,
     pub label: String,
 }
 
@@ -28,12 +28,12 @@ pub fn create_labeled_account(
     }
 
     add_account(&msg_caller(), LabeledAccount {
-        account: request.address.clone(),
+        account: request.account.clone(),
         label: request.label.trim().to_string(),
     })?;
 
     Ok(LabeledAccount {
-        account: request.address,
+        account: request.account,
         label: request.label,
     })
 }
@@ -57,7 +57,7 @@ pub fn update_labeled_account(
     }
 
     let labeled_account = LabeledAccount {
-        account: request.address.clone(),
+        account: request.account.clone(),
         label: request.label.trim().to_string(),
     };
 

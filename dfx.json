@@ -11,11 +11,6 @@
       "workspace": "dtrack_frontend",
       "specified_id": "j3ikr-giaaa-aaaak-qukua-cai"
     },
-    "icp_ledger_canister": {
-      "type": "custom",
-      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ledger.did",
-      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ledger-canister_notify-method.wasm.gz"
-    },
     "icp_index_canister": {
       "type": "custom",
       "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/index.did",
@@ -40,7 +35,7 @@
       "providers": ["https://icp0.io"]
     },
     "local": {
-      "bind": "127.0.0.1:8080",
+      "bind": "localhost:8080",
       "type": "ephemeral"
     }
   }

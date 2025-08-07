@@ -1,5 +1,5 @@
 type Account = record { owner : principal; subaccount : opt blob };
-type CreateLabeledAccountRequest = record { label : text; address : Account };
+type CreateLabeledAccountRequest = record { label : text; account : Account };
 type LabeledAccount = record { label : text; account : Account };
 type Result = variant { Ok : LabeledAccount; Err : text };
 type Result_1 = variant { Ok; Err : text };
@@ -8,5 +8,5 @@ service : {
   create_labeled_account : (CreateLabeledAccountRequest) -> (Result);
   delete_labeled_account : (Account) -> (Result_1);
   get_labeled_accounts : () -> (Result_2) query;
-  update_labeled_account : (CreateLabeledAccountRequest) -> (Result_1);
+  update_labeled_account : (LabeledAccount) -> (Result_1);
 }
