@@ -7,144 +7,44 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import fetch from "isomorphic-fetch";
-import { canisterId, createActor } from "../../../../declarations/dtrack_backend/index";
-import { canisterId as ledgerCanisterId, createActor as ledgerCreateActor } from "../../../../declarations/icp_ledger_canister/index";
-import { Principal } from "@dfinity/principal";
-import { truncatePrincipal, icpToUsd } from "../../lib/utils";
+import { truncatePrincipal } from "../../lib/utils";
 import { ClipboardCopyIcon } from "@radix-ui/react-icons";
+import { useAccounts } from "../../hooks/useAccounts";
 
-export interface LabeledAccount {
-  owner: string;
-  label: string;
-  balance: number;
-}
 
 export function LabeledAccounts() {
-  const actor = createActor(canisterId, {
-    agentOptions: {
-      fetch,
-      host: process.env.DFX_NETWORK === 'local' ? 'http://127.0.0.1:8080' : 'https://ic0.app',
-      shouldFetchRootKey: true,
-    }
-  })
-
-  const ledgerActor = ledgerCreateActor(ledgerCanisterId, {
-    agentOptions: {
-      fetch,
-      host: process.env.DFX_NETWORK === 'local' ? 'http://127.0.0.1:8080' : 'https://ic0.app',
-      shouldFetchRootKey: true,
-    }
-  })
-
-  const labeledAccounts: LabeledAccount[] = Array.from([])
-  const [accounts, setAccounts] =
-    React.useState<LabeledAccount[]>(labeledAccounts);
-
-  React.useEffect(() => {
-    async function fetchAccounts() {
-      try {
-        const result = await actor.get_labeled_accounts();
-        let accounts: LabeledAccount[] = [];
-
-        if ("Ok" in result) {
-          accounts = result.Ok.map(addr => ({
-            owner: addr.account.owner.toText(),
-            label: addr.label,
-            balance: 0,
-          }));
-        } else {
-          console.error("Failed to fetch accounts:", result.Err);
-        }
-
-        const balances = await Promise.all(
-          accounts.map(async (account) => {
-            try {
-              const balance = await ledgerActor.icrc1_balance_of({
-                owner: Principal.fromText(account.owner),
-                subaccount: [],
-              });
-              const decimals = await ledgerActor.icrc1_decimals();
-              return icpToUsd(Number(balance / BigInt(10**decimals)));
-            } catch {
-              return 0;
-            }
-          })
-        );
-
-        const accountsWithBalances = accounts.map((acc, i) => ({
-          ...acc,
-          balance: balances[i],
-        }));
-        setAccounts(accountsWithBalances);
-      } catch (e) {
-        console.error("Failed to fetch accounts", e);
-      }
-    }
-    fetchAccounts();
-  }, []);
-
+  const { accounts, isLoading, error, addAccount, removeAccount } = useAccounts();
   const [newOwner, setNewOwner] = React.useState("");
   const [newLabel, setNewLabel] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
+  const [removingAccount, setRemovingAccount] = React.useState<string | null>(null);
+  const [copiedAccount, setCopiedAccount] = React.useState<string | null>(null);
 
   const handleAddAccount = async () => {
-    if (newOwner && setNewOwner) {
+    if (newOwner && newLabel) {
       setIsAdding(true);
       try {
-        await actor.create_labeled_account({
-          label: newLabel,
-          account: {
-            owner: Principal.fromText(newOwner),
-            subaccount: [],
-          }
-        });
-
-        let balance = 0;
-        try {
-          balance = icpToUsd(Number(
-            await ledgerActor.icrc1_balance_of({
-              owner: Principal.fromText(newOwner),
-              subaccount: [],
-            }) / BigInt(10**(await ledgerActor.icrc1_decimals()))
-          ));
-        } catch {
-          balance = 0;
-        }
-
-        const newLabeledAccount: LabeledAccount = {
-          owner: newOwner,
-          label: newLabel,
-          balance,
-        };
-        setAccounts([...accounts, newLabeledAccount]);
+        await addAccount(newOwner, newLabel);
         setNewOwner("");
         setNewLabel("");
       } catch (e) {
-        alert("Failed to add account: " + e)
+        alert("Failed to add account: " + e);
       } finally {
         setIsAdding(false);
       }
     }
   };
 
-  const [removingAccount, setRemovingAccount] = React.useState<string | null>(null);
-  const removeAccount = async (owner: string) => {
+  const handleRemoveAccount = async (owner: string) => {
     setRemovingAccount(owner);
     try {
-      await actor.delete_labeled_account({
-        owner: Principal.fromText(owner),
-        subaccount: [],
-      });
-      setAccounts(accounts.filter((acc) => acc.owner !== owner));
+      await removeAccount(owner);
     } catch (e) {
-      alert("Failed to delete account" + e);
+      alert("Failed to delete account: " + e);
     } finally {
-      setRemovingAccount(null)
+      setRemovingAccount(null);
     }
   };
-
-  const [copiedAccount, setCopiedAccount] = React.useState<string | null>(null);
 
   const handleCopy = (owner: string) => {
     navigator.clipboard.writeText(owner);
@@ -258,7 +158,7 @@ export function LabeledAccounts() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => removeAccount(account.owner)}
+                    onClick={() => handleRemoveAccount(account.owner)}
                   >
                     {removingAccount === account.owner ? (
                       <svg className="animate-spin h-4 w-4 mr-2 text-white" viewBox="0 0 24 24">
