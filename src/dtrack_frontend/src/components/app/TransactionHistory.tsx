@@ -14,29 +14,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, FileSpreadsheet } from "lucide-react";
 import { mockTransactions } from "@/mocks/tx.mock";
 import { canisterId, createActor } from "../../../../declarations/icp_index_canister";
 import * as React from "react";
+import { useAccounts } from "../../hooks/useAccounts";
 
-const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
-    case "completed":
-      return "default";
-    case "pending":
-      return "secondary";
-    case "failed":
-      return "destructive";
-    default:
-      return "default";
-  }
-};
 
-const getTypeBadgeVariant = (type: string) => {
-  return type === "received" ? "default" : "secondary";
-};
+export interface Transaction {
+  id: string;
+  amount: number;
+  type: string;
+  timestamp: number;
+  account: string;
+}
 
 export function TransactionHistory() {
   const actor = React.useMemo(() =>
@@ -48,6 +40,11 @@ export function TransactionHistory() {
       }
     }), []
   );
+
+  const { accounts, isLoading, error } = useAccounts();
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="w-full space-y-6">
@@ -92,7 +89,6 @@ export function TransactionHistory() {
                 <TableHead>Type</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Address</TableHead>
-                <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -105,20 +101,13 @@ export function TransactionHistory() {
                     {new Date(transaction.date).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getTypeBadgeVariant(transaction.type)}>
-                      {transaction.type}
-                    </Badge>
+                    null
                   </TableCell>
                   <TableCell className="text-right font-semibold">
                     ${transaction.amount.toLocaleString()}
                   </TableCell>
                   <TableCell className="font-mono text-sm">
                     {transaction.address}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusBadgeVariant(transaction.status)}>
-                      {transaction.status}
-                    </Badge>
                   </TableCell>
                 </TableRow>
               ))}
