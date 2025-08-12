@@ -17,7 +17,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, FileSpreadsheet } from "lucide-react";
-import {  mockTransactions } from "@/mocks/tx.mock";
+import { mockTransactions } from "@/mocks/tx.mock";
+import { canisterId, createActor } from "../../../../declarations/icp_index_canister";
+import * as React from "react";
 
 const getStatusBadgeVariant = (status: string) => {
   switch (status) {
@@ -37,6 +39,16 @@ const getTypeBadgeVariant = (type: string) => {
 };
 
 export function TransactionHistory() {
+  const actor = React.useMemo(() =>
+    createActor(canisterId, {
+      agentOptions: {
+        fetch,
+        host: process.env.DFX_NETWORK === 'local' ? 'http://127.0.0.1:8080' : 'https://ic0.app',
+        shouldFetchRootKey: process.env.DFX_NETWORK === 'local' ? true : false,
+      }
+    }), []
+  );
+
   return (
     <div className="w-full space-y-6">
       <Card>

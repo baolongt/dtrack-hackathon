@@ -17,7 +17,7 @@ export function useAccounts() {
       agentOptions: {
         fetch,
         host: process.env.DFX_NETWORK === 'local' ? 'http://127.0.0.1:8080' : 'https://ic0.app',
-        shouldFetchRootKey: true,
+        shouldFetchRootKey: process.env.DFX_NETWORK === 'local' ? true : false,
       }
     }), []
   );
@@ -27,7 +27,7 @@ export function useAccounts() {
       agentOptions: {
         fetch,
         host: process.env.DFX_NETWORK === 'local' ? 'http://127.0.0.1:8080' : 'https://ic0.app',
-        shouldFetchRootKey: true,
+        shouldFetchRootKey: process.env.DFX_NETWORK === 'local' ? true : false,
       }
     }), []
   );
