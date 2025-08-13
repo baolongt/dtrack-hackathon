@@ -16,35 +16,18 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FileText, FileSpreadsheet } from "lucide-react";
-import { mockTransactions } from "@/mocks/tx.mock";
 import { canisterId, createActor } from "../../../../declarations/icp_index_canister";
-import * as React from "react";
+import React, { useMemo } from "react";
 import { useAccounts } from "../../hooks/useAccounts";
 
 
-export interface Transaction {
-  id: string;
-  amount: number;
-  type: string;
-  timestamp: number;
-  account: string;
-}
-
 export function TransactionHistory() {
-  const actor = React.useMemo(() =>
-    createActor(canisterId, {
-      agentOptions: {
-        fetch,
-        host: process.env.DFX_NETWORK === 'local' ? 'http://127.0.0.1:8080' : 'https://ic0.app',
-        shouldFetchRootKey: process.env.DFX_NETWORK === 'local' ? true : false,
-      }
-    }), []
-  );
 
-  const { accounts, isLoading, error } = useAccounts();
+  const { accounts } = useAccounts();
 
-  if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
+  const transactions = useMemo(() => {
+    return accounts.flatMap((account) => account.transactions || []);
+  }, [accounts]);
 
   return (
     <div className="w-full space-y-6">
@@ -86,28 +69,26 @@ export function TransactionHistory() {
               <TableRow>
                 <TableHead className="w-[120px]">Transaction ID</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Address</TableHead>
+                <TableHead >Account</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockTransactions.map((transaction) => (
+              {transactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell className="font-mono text-sm font-medium">
-                    {transaction.id}
+                    {Number(transaction.id)}
                   </TableCell>
                   <TableCell>
-                    {new Date(transaction.date).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    null
+                    {new Date(Math.trunc(Number(transaction.timestamp_nanos) / 1000000)).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-right font-semibold">
-                    ${transaction.amount.toLocaleString()}
+                    {transaction.amount < 0
+                      ? `-$${Math.abs(Number(transaction.amount)).toLocaleString()}`
+                      : `$${transaction.amount.toLocaleString()}`}
                   </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {transaction.address}
+                  <TableCell className="text-center font-bold">
+                    {transaction.account}
                   </TableCell>
                 </TableRow>
               ))}
