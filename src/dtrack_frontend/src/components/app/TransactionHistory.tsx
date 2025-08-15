@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { FileText, FileSpreadsheet } from "lucide-react";
 import { canisterId, createActor } from "../../../../declarations/icp_index_canister";
 import React, { useMemo } from "react";
@@ -88,8 +89,8 @@ export function TransactionHistory() {
                       ? `-$${Math.abs(Number(transaction.amount)).toLocaleString()}`
                       : `$${transaction.amount.toLocaleString()}`}
                   </TableCell>
-                  <TableCell className="text-center font-bold">
-                    {transaction.account}
+                  <TableCell className="font-bold">
+                    <Badge variant="default">{transaction.account}</Badge>
                   </TableCell>
                 </TableRow>
               ))}
