@@ -41,6 +41,35 @@ impl Storable for Accounts {
     };
 }
 
+
+// New type for storing a single transaction label
+#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct TransactionLabelRecord {
+    pub id: u64,
+    pub label: String,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct TxLabels {
+    pub labels: Vec<TransactionLabelRecord>,
+}
+
+impl Storable for TxLabels {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+    fn into_bytes(self) -> Vec<u8> {
+        Encode!(&self).unwrap()
+    }
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 4096,
+        is_fixed_size: false,
+    };
+}
+
 thread_local! {
     pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
         RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -48,6 +77,12 @@ thread_local! {
     pub static ACCOUNTS: RefCell<StableBTreeMap<Principal, Accounts, Memory>> = RefCell::new(
         StableBTreeMap::init(
             MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(0)))
+        )
+    );
+
+    pub static TRANSACTION_LABELS: RefCell<StableBTreeMap<Principal, TxLabels, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(1)))
         )
     );
 }
@@ -83,6 +118,10 @@ pub fn remove_account(principal: &Principal, account: &Account) -> Result<(), St
         if let Some(mut accounts_entry) = accounts.get(principal) {
             if let Some(pos) = accounts_entry.accounts.iter().position(|x| x.account == *account) {
                 accounts_entry.accounts.remove(pos);
+
+                TRANSACTION_LABELS.with_borrow_mut(|tx_labels| {
+                    tx_labels.remove(principal);
+                });
                 if accounts_entry.accounts.is_empty() {
                     accounts.remove(principal);
                 } else {
@@ -114,5 +153,24 @@ pub fn update_account(
         } else {
             Err("No accounts found for this principal".to_string())
         }
+    })
+}
+
+pub fn set_transaction_label(principal: &Principal, transaction_id: u64, label: String) -> Result<(), String> {
+    TRANSACTION_LABELS.with_borrow_mut(|tx_labels| {
+        let mut entry = tx_labels.get(principal).unwrap_or_else(|| TxLabels { labels: vec![] });
+        if let Some(pos) = entry.labels.iter().position(|x| x.id == transaction_id) {
+            entry.labels[pos].label = label;
+        } else {
+            entry.labels.push(TransactionLabelRecord { id: transaction_id, label });
+        }
+        tx_labels.insert(principal.clone(), entry);
+        Ok(())
+    })
+}
+
+pub fn get_transaction_labels(principal: &Principal) -> Vec<TransactionLabelRecord> {
+    TRANSACTION_LABELS.with_borrow(|tx_labels| {
+        tx_labels.get(principal).map_or_else(|| vec![], |entry| entry.labels)
     })
 }
