@@ -26,7 +26,8 @@ export function TransactionHistory() {
   const { accounts } = useAccounts();
 
   const transactions = useMemo(() => {
-    return accounts.flatMap((account) => account.transactions || []);
+    return accounts.flatMap((account) => account.transactions || []).sort((a, b) => Number(b.timestamp_nanos) - Number(a.timestamp_nanos));
+    ;
   }, [accounts]);
 
   return (
