@@ -21,7 +21,6 @@ pub struct UpdateLabeledAccountRequest {
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct SetTransactionLabelRequest {
-    pub account: Account, // provided for verification, if needed
     pub transaction_id: u64,
     pub label: String,
 }
@@ -79,10 +78,7 @@ pub fn update_labeled_account(request: UpdateLabeledAccountRequest) -> Result<()
 }
 
 #[ic_cdk::update]
-pub fn get_transaction_labels(account: Account) -> Result<Vec<TransactionLabelRecord>, String> {
-    if account.owner != msg_caller() {
-        return Err("Unauthorized: account owner mismatch".to_string());
-    }
+pub fn get_transaction_labels() -> Result<Vec<TransactionLabelRecord>, String> {
     Ok(repo_get_transaction_labels(&msg_caller()))
 }
 
@@ -91,9 +87,7 @@ pub fn set_transaction_label(request: SetTransactionLabelRequest) -> Result<(), 
     if !validate_label(&request.label) {
         return Err("Invalid label".to_string());
     }
-    if request.account.owner != msg_caller() {
-        return Err("Unauthorized: account owner mismatch".to_string());
-    }
+    
     repo_set_transaction_label(
         &msg_caller(),
         request.transaction_id,

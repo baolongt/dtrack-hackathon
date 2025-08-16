@@ -8,7 +8,6 @@ type TransactionId = nat64;
 type TransactionLabel = text;
 type LabeledTransaction = record { id : TransactionId; label : TransactionLabel };
 type SetTransactionLabelRequest = record {
-  account : Account;
   transaction_id : TransactionId;
   label : TransactionLabel;
 };
@@ -18,6 +17,6 @@ service : {
   delete_labeled_account : (Account) -> (Result_1);
   get_labeled_accounts : () -> (Result_2) query;
   update_labeled_account : (LabeledAccount) -> (Result_1);
-  get_transaction_labels : (Account) -> (Result_3) query;
+  get_transaction_labels : () -> (Result_3) query;
   set_transaction_label : (SetTransactionLabelRequest) -> (Result_1);
 }
