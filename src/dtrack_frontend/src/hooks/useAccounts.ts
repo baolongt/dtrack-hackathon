@@ -19,6 +19,7 @@ export interface Transaction {
     amount: bigint;
     timestamp_nanos: bigint;
     account: string;
+    label: string;
 }
 
 export function useAccounts() {
@@ -94,9 +95,25 @@ export function useAccounts() {
                 balance: balances[i],
             }));
 
-            const transactions = await Promise.all(
+            const customLabelsResults = await Promise.all(
                 accountsWithBalances.map(async (account) => {
                     try {
+                        const result = await actor.get_transaction_labels();
+                        if ("Ok" in result) {
+                            return new Map(result.Ok.map(record => [BigInt(record.id), record.label]));
+                        }
+                        return new Map<bigint, string>();
+                    } catch {
+                        return new Map<bigint, string>();
+                    }
+                })
+            );
+
+            const transactions = await Promise.all(
+                accountsWithBalances.map(async (account, i) => {
+                    try {
+                        const customLabelsForAccount = customLabelsResults[i];
+
                         const result = await indexActor.get_account_transactions({
                             max_results: BigInt(50),
                             start: [],
@@ -106,7 +123,7 @@ export function useAccounts() {
                             }
                         })
 
-                        let temp : Transaction[] = [];
+                        let temp: Transaction[] = [];
 
                         if ("Ok" in result) {
                             for (const trans of result.Ok.transactions) {
@@ -117,12 +134,17 @@ export function useAccounts() {
                                     }).toHex()
 
                                     let isReceived = trans.transaction.operation.Transfer.to === accountId
+                                    const defaultLabel = isReceived ? "received" : "sent";
 
+                                    const customLabel = customLabelsForAccount.get(trans.id);
+
+                                    const finalLabel = customLabel ?? defaultLabel;
                                     temp.push({
                                         id: trans.id,
-                                        amount: BigInt(isReceived ? 1:-1)* trans.transaction.operation.Transfer.amount.e8s / BigInt(100000000),
+                                        amount: BigInt(isReceived ? 1 : -1) * trans.transaction.operation.Transfer.amount.e8s / BigInt(100000000),
                                         timestamp_nanos: trans.transaction.timestamp[0]?.timestamp_nanos ?? BigInt(0),
                                         account: account.label,
+                                        label: finalLabel,
                                     })
                                 }
                             }
@@ -137,7 +159,7 @@ export function useAccounts() {
                 })
             );
 
-             const accountsWithTransactions = accountsWithBalances.map((acc, i) => ({
+            const accountsWithTransactions = accountsWithBalances.map((acc, i) => ({
                 ...acc,
                 transactions: transactions[i],
             }));
@@ -149,7 +171,27 @@ export function useAccounts() {
         } finally {
             setIsLoading(false);
         }
-    }, [actor, ledgerActor]);
+    }, [actor, ledgerActor, indexActor]);
+
+    const updateTransactionLabel = React.useCallback(
+        async (transactionId: bigint, label: string) => {
+            try {
+                const result = await actor.set_transaction_label({
+                    transaction_id: transactionId,
+                    label: label,
+                });
+                if ("Ok" in result) {
+                    await fetchAccounts(); // Refresh accounts after update
+                    return true;
+                } else {
+                    throw new Error(result.Err);
+                }
+            } catch (e) {
+                throw new Error(e instanceof Error ? e.message : "Failed to update label");
+            }
+        },
+        [actor, fetchAccounts]
+    );
 
     const addAccount = React.useCallback(async (owner: string, label: string) => {
         try {
@@ -190,6 +232,7 @@ export function useAccounts() {
         error,
         fetchAccounts,
         addAccount,
-        removeAccount
+        removeAccount,
+        updateTransactionLabel
     };
 }

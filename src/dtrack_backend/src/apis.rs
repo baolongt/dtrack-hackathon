@@ -1,7 +1,11 @@
+use crate::repository::{
+    add_account, get_accounts, get_transaction_labels as repo_get_transaction_labels,
+    remove_account, set_transaction_label as repo_set_transaction_label, update_account,
+    LabeledAccount, TransactionLabelRecord,
+};
 use candid::{CandidType, Deserialize};
-use icrc_ledger_types::icrc1::account::Account;
-use crate::repository::{LabeledAccount, add_account, get_accounts, remove_account, update_account};
 use ic_cdk::api::msg_caller;
+use icrc_ledger_types::icrc1::account::Account;
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct CreateLabeledAccountRequest {
@@ -12,6 +16,12 @@ pub struct CreateLabeledAccountRequest {
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct UpdateLabeledAccountRequest {
     pub account: Account,
+    pub label: String,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct SetTransactionLabelRequest {
+    pub transaction_id: u64,
     pub label: String,
 }
 
@@ -27,10 +37,13 @@ pub fn create_labeled_account(
         return Err("Invalid label".to_string());
     }
 
-    add_account(&msg_caller(), LabeledAccount {
-        account: request.account.clone(),
-        label: request.label.trim().to_string(),
-    })?;
+    add_account(
+        &msg_caller(),
+        LabeledAccount {
+            account: request.account.clone(),
+            label: request.label.trim().to_string(),
+        },
+    )?;
 
     Ok(LabeledAccount {
         account: request.account,
@@ -40,7 +53,7 @@ pub fn create_labeled_account(
 
 #[ic_cdk::query]
 pub fn get_labeled_accounts() -> Result<Vec<LabeledAccount>, String> {
-     Ok(get_accounts(&msg_caller()))
+    Ok(get_accounts(&msg_caller()))
 }
 
 #[ic_cdk::update]
@@ -49,9 +62,7 @@ pub fn delete_labeled_account(address: Account) -> Result<(), String> {
 }
 
 #[ic_cdk::update]
-pub fn update_labeled_account(
-    request: UpdateLabeledAccountRequest,
-) -> Result<(), String> {
+pub fn update_labeled_account(request: UpdateLabeledAccountRequest) -> Result<(), String> {
     if !validate_label(&request.label) {
         return Err("Invalid label".to_string());
     }
@@ -64,4 +75,22 @@ pub fn update_labeled_account(
     update_account(&msg_caller(), labeled_account)?;
 
     Ok(())
+}
+
+#[ic_cdk::update]
+pub fn get_transaction_labels() -> Result<Vec<TransactionLabelRecord>, String> {
+    Ok(repo_get_transaction_labels(&msg_caller()))
+}
+
+#[ic_cdk::update]
+pub fn set_transaction_label(request: SetTransactionLabelRequest) -> Result<(), String> {
+    if !validate_label(&request.label) {
+        return Err("Invalid label".to_string());
+    }
+    
+    repo_set_transaction_label(
+        &msg_caller(),
+        request.transaction_id,
+        request.label.trim().to_string(),
+    )
 }

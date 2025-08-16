@@ -4,9 +4,19 @@ type LabeledAccount = record { label : text; account : Account };
 type Result = variant { Ok : LabeledAccount; Err : text };
 type Result_1 = variant { Ok; Err : text };
 type Result_2 = variant { Ok : vec LabeledAccount; Err : text };
+type TransactionId = nat64;
+type TransactionLabel = text;
+type LabeledTransaction = record { id : TransactionId; label : TransactionLabel };
+type SetTransactionLabelRequest = record {
+  transaction_id : TransactionId;
+  label : TransactionLabel;
+};
+type Result_3 = variant { Ok : vec LabeledTransaction; Err : text };
 service : {
   create_labeled_account : (CreateLabeledAccountRequest) -> (Result);
   delete_labeled_account : (Account) -> (Result_1);
   get_labeled_accounts : () -> (Result_2) query;
   update_labeled_account : (LabeledAccount) -> (Result_1);
+  get_transaction_labels : () -> (Result_3);
+  set_transaction_label : (SetTransactionLabelRequest) -> (Result_1);
 }
