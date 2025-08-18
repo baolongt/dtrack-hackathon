@@ -39,7 +39,7 @@ export function TransactionHistory() {
 
   const handleSave = async () => {
     if (editingTx) {
-            setIsSaving(true);
+      setIsSaving(true);
 
       try {
         await updateTransactionLabel(editingTx.id, editingTx.label);
@@ -47,7 +47,7 @@ export function TransactionHistory() {
         setEditingTx(null);
       } catch (error) {
         alert("Error updating label");
-      }finally {
+      } finally {
         setIsSaving(false);
       }
     }
@@ -91,27 +91,27 @@ export function TransactionHistory() {
           </div>
         </CardHeader>
         <CardContent>
-                    <Table className="table-fixed">
+          <Table className="table-fixed">
             <TableCaption>A list of your recent transactions.</TableCaption>
             <TableHeader>
-              <TableRow>
+              <TableRow className="h-13">
                 <TableHead className="w-[120px]">Transaction ID</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Amount</TableHead>
                 <TableHead >Account</TableHead>
                 <TableHead style={{ width: "200px" }}>Label</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {transactions.map((transaction) => (
-                <TableRow key={transaction.id}>
+                <TableRow key={transaction.id} className="h-13">
                   <TableCell className="font-mono text-sm font-medium">
                     {Number(transaction.id)}
                   </TableCell>
                   <TableCell>
-                    {new Date(Math.trunc(Number(transaction.timestamp_nanos) / 1000000)).toLocaleDateString()}
+                    {new Date(Math.trunc(Number(transaction.timestamp_nanos) / 1000000)).toLocaleString()}
                   </TableCell>
-                  <TableCell className="text-right font-semibold">
+                  <TableCell className="font-semibold">
                     {transaction.amount < 0
                       ? `-$${Math.abs(Number(transaction.amount)).toLocaleString()}`
                       : `$${transaction.amount.toLocaleString()}`}
