@@ -1,4 +1,5 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal};
+use ic_cdk::api::time;
 use ic_stable_structures::storable::Bound;
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
@@ -7,7 +8,6 @@ use ic_stable_structures::{
 use icrc_ledger_types::icrc1::account::Account;
 use std::borrow::Cow;
 use std::cell::RefCell;
-use ic_cdk::api::time;
 
 pub type Memory = VirtualMemory<DefaultMemoryImpl>;
 
@@ -73,7 +73,7 @@ impl Storable for TxLabels {
 #[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct CustomTransaction {
     pub id: String,
-    pub timestamp_ms: String,
+    pub timestamp_ms: u64,
     pub label: String,
     pub amount: u64,
 }
@@ -155,7 +155,11 @@ pub fn add_account(principal: &Principal, account: LabeledAccount) -> Result<(),
 pub fn remove_account(principal: &Principal, account: &Account) -> Result<(), String> {
     ACCOUNTS.with_borrow_mut(|accounts| {
         if let Some(mut accounts_entry) = accounts.get(principal) {
-            if let Some(pos) = accounts_entry.accounts.iter().position(|x| x.account == *account) {
+            if let Some(pos) = accounts_entry
+                .accounts
+                .iter()
+                .position(|x| x.account == *account)
+            {
                 accounts_entry.accounts.remove(pos);
 
                 TRANSACTION_LABELS.with_borrow_mut(|tx_labels| {
@@ -181,13 +185,14 @@ pub fn remove_account(principal: &Principal, account: &Account) -> Result<(), St
     })
 }
 
-pub fn update_account(
-    principal: &Principal,
-    account: LabeledAccount,
-) -> Result<(), String> {
+pub fn update_account(principal: &Principal, account: LabeledAccount) -> Result<(), String> {
     ACCOUNTS.with_borrow_mut(|accounts| {
         if let Some(mut accounts_entry) = accounts.get(principal) {
-            if let Some(pos) = accounts_entry.accounts.iter().position(|x| x.account == account.account) {
+            if let Some(pos) = accounts_entry
+                .accounts
+                .iter()
+                .position(|x| x.account == account.account)
+            {
                 accounts_entry.accounts[pos] = account;
                 accounts.insert(principal.clone(), accounts_entry);
                 Ok(())
@@ -200,13 +205,22 @@ pub fn update_account(
     })
 }
 
-pub fn set_transaction_label(principal: &Principal, transaction_id: u64, label: String) -> Result<(), String> {
+pub fn set_transaction_label(
+    principal: &Principal,
+    transaction_id: u64,
+    label: String,
+) -> Result<(), String> {
     TRANSACTION_LABELS.with_borrow_mut(|tx_labels| {
-        let mut entry = tx_labels.get(principal).unwrap_or_else(|| TxLabels { labels: vec![] });
+        let mut entry = tx_labels
+            .get(principal)
+            .unwrap_or_else(|| TxLabels { labels: vec![] });
         if let Some(pos) = entry.labels.iter().position(|x| x.id == transaction_id) {
             entry.labels[pos].label = label;
         } else {
-            entry.labels.push(TransactionLabelRecord { id: transaction_id, label });
+            entry.labels.push(TransactionLabelRecord {
+                id: transaction_id,
+                label,
+            });
         }
         tx_labels.insert(principal.clone(), entry);
         Ok(())
@@ -215,7 +229,9 @@ pub fn set_transaction_label(principal: &Principal, transaction_id: u64, label: 
 
 pub fn get_transaction_labels(principal: &Principal) -> Vec<TransactionLabelRecord> {
     TRANSACTION_LABELS.with_borrow(|tx_labels| {
-        tx_labels.get(principal).map_or_else(|| vec![], |entry| entry.labels)
+        tx_labels
+            .get(principal)
+            .map_or_else(|| vec![], |entry| entry.labels)
     })
 }
 
@@ -228,15 +244,20 @@ pub fn get_custom_transactions(principal: &Principal) -> Vec<CustomTransaction> 
     })
 }
 
-pub fn create_custom_transaction(principal: &Principal, mut transaction: CustomTransaction) -> Result<String, String> {
+pub fn create_custom_transaction(
+    principal: &Principal,
+    mut transaction: CustomTransaction,
+) -> Result<String, String> {
     CUSTOM_TRANSACTIONS.with_borrow_mut(|ct| {
-        let mut entry = ct.get(principal).unwrap_or_else(|| CustomTransactions { transactions: vec![] });
+        let mut entry = ct.get(principal).unwrap_or_else(|| CustomTransactions {
+            transactions: vec![],
+        });
 
         // Use provided id if not empty, otherwise generate an id from the current time
         let id = if transaction.id.trim().is_empty() {
-            time().to_string()
+            format!("C#{}", time() / 1_000_000_000)
         } else {
-            format!("C#{}",transaction.id.trim().to_string())
+            transaction.id.trim().to_string()
         };
 
         // ensure uniqueness
@@ -251,10 +272,17 @@ pub fn create_custom_transaction(principal: &Principal, mut transaction: CustomT
     })
 }
 
-pub fn update_custom_transaction(principal: &Principal, transaction: CustomTransaction) -> Result<(), String> {
+pub fn update_custom_transaction(
+    principal: &Principal,
+    transaction: CustomTransaction,
+) -> Result<(), String> {
     CUSTOM_TRANSACTIONS.with_borrow_mut(|ct| {
         if let Some(mut entry) = ct.get(principal) {
-            if let Some(pos) = entry.transactions.iter().position(|t| t.id == transaction.id) {
+            if let Some(pos) = entry
+                .transactions
+                .iter()
+                .position(|t| t.id == transaction.id)
+            {
                 entry.transactions[pos] = transaction;
                 ct.insert(principal.clone(), entry);
                 Ok(())

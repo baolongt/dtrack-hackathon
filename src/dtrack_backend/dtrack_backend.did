@@ -32,5 +32,5 @@ service : {
   create_custom_transaction : (CreateCustomTransactionRequest) -> (Result_4);
   get_custom_transactions : () -> (Result_5) query;
   update_custom_transaction : (CustomTransaction) -> (Result_1);
-  delete_custom_transaction : (TransactionId) -> (Result_1);
+  delete_custom_transaction : (text) -> (Result_1);
 }
