@@ -7,6 +7,7 @@ use ic_stable_structures::{
 use icrc_ledger_types::icrc1::account::Account;
 use std::borrow::Cow;
 use std::cell::RefCell;
+use ic_cdk::api::time;
 
 pub type Memory = VirtualMemory<DefaultMemoryImpl>;
 
@@ -35,12 +36,10 @@ impl Storable for Accounts {
     }
 
     const BOUND: Bound = Bound::Bounded {
-        // re-consider the Accounts size limit
         max_size: 4096,
         is_fixed_size: false,
     };
 }
-
 
 // New type for storing a single transaction label
 #[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -70,6 +69,40 @@ impl Storable for TxLabels {
     };
 }
 
+// CustomTransaction types (added to match updated .did)
+#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct CustomTransaction {
+    pub id: String,
+    pub date: String,
+    pub label: String,
+    pub amount: u64,
+}
+
+#[derive(CandidType, Deserialize)]
+pub struct CustomTransactions {
+    pub transactions: Vec<CustomTransaction>,
+}
+
+impl Storable for CustomTransactions {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        Encode!(&self).unwrap()
+    }
+
+    const BOUND: Bound = Bound::Bounded {
+        // allow larger storage for custom transactions; adjust as needed
+        max_size: 8192,
+        is_fixed_size: false,
+    };
+}
+
 thread_local! {
     pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
         RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -83,6 +116,12 @@ thread_local! {
     pub static TRANSACTION_LABELS: RefCell<StableBTreeMap<Principal, TxLabels, Memory>> = RefCell::new(
         StableBTreeMap::init(
             MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(1)))
+        )
+    );
+
+    pub static CUSTOM_TRANSACTIONS: RefCell<StableBTreeMap<Principal, CustomTransactions, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(2)))
         )
     );
 }
@@ -122,8 +161,13 @@ pub fn remove_account(principal: &Principal, account: &Account) -> Result<(), St
                 TRANSACTION_LABELS.with_borrow_mut(|tx_labels| {
                     tx_labels.remove(principal);
                 });
+
+                // also remove custom transactions for this principal if no accounts left
                 if accounts_entry.accounts.is_empty() {
                     accounts.remove(principal);
+                    CUSTOM_TRANSACTIONS.with_borrow_mut(|ct| {
+                        ct.remove(principal);
+                    });
                 } else {
                     accounts.insert(principal.clone(), accounts_entry);
                 }
@@ -172,5 +216,73 @@ pub fn set_transaction_label(principal: &Principal, transaction_id: u64, label: 
 pub fn get_transaction_labels(principal: &Principal) -> Vec<TransactionLabelRecord> {
     TRANSACTION_LABELS.with_borrow(|tx_labels| {
         tx_labels.get(principal).map_or_else(|| vec![], |entry| entry.labels)
+    })
+}
+
+// Custom transactions repository functions (new to match .did)
+
+pub fn get_custom_transactions(principal: &Principal) -> Vec<CustomTransaction> {
+    CUSTOM_TRANSACTIONS.with_borrow(|ct| {
+        ct.get(principal)
+            .map_or_else(|| vec![], |entry| entry.transactions)
+    })
+}
+
+pub fn create_custom_transaction(principal: &Principal, mut transaction: CustomTransaction) -> Result<String, String> {
+    CUSTOM_TRANSACTIONS.with_borrow_mut(|ct| {
+        let mut entry = ct.get(principal).unwrap_or_else(|| CustomTransactions { transactions: vec![] });
+
+        // Use provided id if not empty, otherwise generate an id from the current time
+        let id = if transaction.id.trim().is_empty() {
+            time().to_string()
+        } else {
+            transaction.id.trim().to_string()
+        };
+
+        // ensure uniqueness
+        if entry.transactions.iter().any(|t| t.id == id) {
+            return Err("Transaction id already exists".to_string());
+        }
+
+        transaction.id = id.clone();
+        entry.transactions.push(transaction);
+        ct.insert(principal.clone(), entry);
+        Ok(id)
+    })
+}
+
+pub fn update_custom_transaction(principal: &Principal, transaction: CustomTransaction) -> Result<(), String> {
+    CUSTOM_TRANSACTIONS.with_borrow_mut(|ct| {
+        if let Some(mut entry) = ct.get(principal) {
+            if let Some(pos) = entry.transactions.iter().position(|t| t.id == transaction.id) {
+                entry.transactions[pos] = transaction;
+                ct.insert(principal.clone(), entry);
+                Ok(())
+            } else {
+                Err("Custom transaction not found".to_string())
+            }
+        } else {
+            Err("No custom transactions for this principal".to_string())
+        }
+    })
+}
+
+pub fn delete_custom_transaction(principal: &Principal, id: &str) -> Result<(), String> {
+    CUSTOM_TRANSACTIONS.with_borrow_mut(|ct| {
+        if let Some(mut entry) = ct.get(principal) {
+            if let Some(pos) = entry.transactions.iter().position(|t| t.id == id) {
+                entry.transactions.remove(pos);
+                if entry.transactions.is_empty() {
+                    ct.remove(principal);
+                } else {
+                    ct.insert(principal.clone(), entry);
+                }
+                Ok(())
+            } else {
+                Err("Custom transaction not found".to_string())
+            }
+        } else {
+            Err("No custom transactions for this principal".to_string())
+        }
     })
 }
