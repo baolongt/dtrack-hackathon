@@ -44,6 +44,8 @@ export function TransactionHistory() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   // newTx.date holds an HTML datetime-local string (e.g. "2025-08-19T14:30")
@@ -132,6 +134,130 @@ export function TransactionHistory() {
     }
   };
 
+  const handleDownloadExcel = async () => {
+    try {
+      setIsDownloading(true);
+      // dynamic import so the bundle doesn't require xlsx at compile time
+      const XLSX = (await import("xlsx")) as any;
+      if (!XLSX || !XLSX.utils) throw new Error("xlsx library not available");
+
+      const rows = transactions.map((tx) => {
+        const amountNum = Number(tx.amount);
+        return {
+          "Transaction ID": tx.id,
+          Time: tx.timestamp_ms ? new Date(tx.timestamp_ms).toLocaleString() : "",
+          "Timestamp (ms)": tx.timestamp_ms ?? "",
+          Amount: amountNum,
+          "Amount (formatted)": currency.format(amountNum),
+          Account: tx.account,
+          Label: tx.label,
+          "Is Custom": tx.isCustom ? "Yes" : "No",
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(rows, { origin: "A1" });
+      // Set column widths (optional)
+      const colWidths = [
+        { wch: 36 }, // Transaction ID
+        { wch: 20 }, // Time
+        { wch: 18 }, // Timestamp
+        { wch: 12 }, // Amount
+        { wch: 18 }, // Amount formatted
+        { wch: 18 }, // Account
+        { wch: 36 }, // Label
+        { wch: 10 }, // Is Custom
+      ];
+      ws["!cols"] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const filename = `transactions-${ts}.xlsx`;
+      // writeFile triggers download in browser
+      XLSX.writeFile(wb, filename);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate Excel file. Install 'xlsx' package.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setIsDownloadingPdf(true);
+      // dynamic imports so the bundle doesn't require jspdf/autotable at compile time
+      const jspdfModule = await import("jspdf");
+      const { jsPDF } = jspdfModule as any;
+      if (!jsPDF) throw new Error("jspdf library not available");
+
+      // import the autoTable function. Different bundlers/export styles mean
+      // the module might export default or named; handle both.
+      const autoTableModule = await import("jspdf-autotable");
+      const autoTableFn = (autoTableModule as any).default ?? (autoTableModule as any);
+      if (!autoTableFn) throw new Error("jspdf-autotable not available");
+
+      const doc: any = new jsPDF({
+        unit: "pt",
+        format: "letter",
+      });
+
+      const columns = [
+        "Transaction ID",
+        "Time",
+        "Timestamp (ms)",
+        "Amount",
+        "Account",
+        "Label",
+        "Is Custom",
+      ];
+      const body = transactions.map((tx) => {
+        const amountNum = Number(tx.amount);
+        return [
+          tx.id,
+          tx.timestamp_ms ? new Date(tx.timestamp_ms).toLocaleString() : "",
+          tx.timestamp_ms ?? "",
+          tx.amount < 0 ? `-${currency.format(Math.abs(amountNum))}` : currency.format(amountNum),
+          tx.account,
+          tx.label,
+          tx.isCustom ? "Yes" : "No",
+        ];
+      });
+
+      // Add title
+      doc.setFontSize(12);
+      doc.text("Transaction History", 40, 40);
+
+      // Use the imported autoTable function instead of doc.autoTable to avoid "not a function" issues.
+      autoTableFn(doc, {
+        head: [columns],
+        body,
+        startY: 60,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [48, 64, 159] },
+        columnStyles: {
+          0: { cellWidth: 120 }, // Transaction ID
+          1: { cellWidth: 85 }, // Time
+          2: { cellWidth: 80 }, // Timestamp
+          3: { cellWidth: 60 }, // Amount
+          4: { cellWidth: 60 }, // Account
+          5: { cellWidth: 170 }, // Label
+          6: { cellWidth: 40 }, // Is Custom
+        },
+        didDrawCell: (_data: any) => {
+          // no-op placeholder for potential custom drawing
+        },
+      });
+
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      doc.save(`transactions-${ts}.pdf`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to generate PDF. Install 'jspdf' and 'jspdf-autotable' packages.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-6">
       <Card>
@@ -145,19 +271,21 @@ export function TransactionHistory() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => alert("Unimplemented")}
+                onClick={handleDownloadPDF}
                 className="flex items-center gap-2"
+                disabled={isDownloadingPdf}
               >
-                <FileText className="h-4 w-4" />
+                {isDownloadingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4" />}
                 Download PDF
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => alert("Unimplemented")}
+                onClick={handleDownloadExcel}
                 className="flex items-center gap-2"
+                disabled={isDownloading}
               >
-                <FileSpreadsheet className="h-4 w-4" />
+                {isDownloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                 Download Excel
               </Button>
 
