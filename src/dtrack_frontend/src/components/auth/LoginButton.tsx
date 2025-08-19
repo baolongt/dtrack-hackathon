@@ -8,7 +8,9 @@ export function LoginButton() {
 
   const disabled = loginStatus === "logging-in";
 
-  if (loginStatus === "success" && identity) {
+  // Prefer showing the logged-in UI whenever an identity is present
+  // (some hooks may restore identity before setting loginStatus to "success")
+  if (identity) {
     return (
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
