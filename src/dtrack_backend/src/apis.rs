@@ -1,7 +1,10 @@
 use crate::repository::{
-    add_account, get_accounts, get_transaction_labels as repo_get_transaction_labels,
-    remove_account, set_transaction_label as repo_set_transaction_label, update_account,
-    LabeledAccount, TransactionLabelRecord,
+    add_account, create_custom_transaction as repo_create_custom_transaction,
+    delete_custom_transaction as repo_delete_custom_transaction, get_accounts,
+    get_custom_transactions as repo_get_custom_transactions,
+    get_transaction_labels as repo_get_transaction_labels, remove_account,
+    set_transaction_label as repo_set_transaction_label, update_account, update_custom_transaction as repo_update_custom_transaction,
+    CustomTransaction, LabeledAccount, TransactionLabelRecord,
 };
 use candid::{CandidType, Deserialize};
 use ic_cdk::api::msg_caller;
@@ -23,6 +26,11 @@ pub struct UpdateLabeledAccountRequest {
 pub struct SetTransactionLabelRequest {
     pub transaction_id: u64,
     pub label: String,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct CreateCustomTransactionRequest {
+    pub transaction: CustomTransaction,
 }
 
 fn validate_label(label: &str) -> bool {
@@ -87,10 +95,46 @@ pub fn set_transaction_label(request: SetTransactionLabelRequest) -> Result<(), 
     if !validate_label(&request.label) {
         return Err("Invalid label".to_string());
     }
-    
+
     repo_set_transaction_label(
         &msg_caller(),
         request.transaction_id,
         request.label.trim().to_string(),
     )
+}
+
+/* Custom transaction endpoints (matching updated .did) */
+
+#[ic_cdk::update]
+pub fn create_custom_transaction(
+    request: CreateCustomTransactionRequest,
+) -> Result<String, String> {
+    if !validate_label(&request.transaction.label) {
+        return Err("Invalid label".to_string());
+    }
+
+    // amount validation (optional): ensure non-zero
+    // if request.transaction.amount == 0 {
+    //     return Err("Amount must be greater than zero".to_string());
+    // }
+
+    repo_create_custom_transaction(&msg_caller(), request.transaction.clone())
+}
+
+#[ic_cdk::query]
+pub fn get_custom_transactions() -> Result<Vec<CustomTransaction>, String> {
+    Ok(repo_get_custom_transactions(&msg_caller()))
+}
+
+#[ic_cdk::update]
+pub fn update_custom_transaction(transaction: CustomTransaction) -> Result<(), String> {
+    if !validate_label(&transaction.label) {
+        return Err("Invalid label".to_string());
+    }
+    repo_update_custom_transaction(&msg_caller(), transaction)
+}
+
+#[ic_cdk::update]
+pub fn delete_custom_transaction(id: String) -> Result<(), String> {
+    repo_delete_custom_transaction(&msg_caller(), &id)
 }

@@ -12,6 +12,15 @@ type SetTransactionLabelRequest = record {
   label : TransactionLabel;
 };
 type Result_3 = variant { Ok : vec LabeledTransaction; Err : text };
+type CustomTransaction = record {
+  id : text;
+  timestamp_ms : nat64;
+  label : TransactionLabel;
+  amount : nat64;
+};
+type CreateCustomTransactionRequest = record { transaction : CustomTransaction };
+type Result_4 = variant { Ok : text; Err : text };
+type Result_5 = variant { Ok : vec CustomTransaction; Err : text };
 service : {
   create_labeled_account : (CreateLabeledAccountRequest) -> (Result);
   delete_labeled_account : (Account) -> (Result_1);
@@ -19,4 +28,9 @@ service : {
   update_labeled_account : (LabeledAccount) -> (Result_1);
   get_transaction_labels : () -> (Result_3);
   set_transaction_label : (SetTransactionLabelRequest) -> (Result_1);
+
+  create_custom_transaction : (CreateCustomTransactionRequest) -> (Result_4);
+  get_custom_transactions : () -> (Result_5) query;
+  update_custom_transaction : (CustomTransaction) -> (Result_1);
+  delete_custom_transaction : (text) -> (Result_1);
 }
