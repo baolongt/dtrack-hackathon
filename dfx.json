@@ -15,6 +15,11 @@
       "type": "custom",
       "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/index.did",
       "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ic-icp-index-canister.wasm.gz"
+    },
+    "icp_ledger_canister": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-08-15/ledger.did",
+      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-08-15/ledger-archive-node-canister.wasm.gz"
     }
   },
   "defaults": {
