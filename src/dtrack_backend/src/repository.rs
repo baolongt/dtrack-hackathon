@@ -73,7 +73,7 @@ impl Storable for TxLabels {
 #[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct CustomTransaction {
     pub id: String,
-    pub date: String,
+    pub timestamp_ms: String,
     pub label: String,
     pub amount: u64,
 }
@@ -236,7 +236,7 @@ pub fn create_custom_transaction(principal: &Principal, mut transaction: CustomT
         let id = if transaction.id.trim().is_empty() {
             time().to_string()
         } else {
-            transaction.id.trim().to_string()
+            format!("C#{}",transaction.id.trim().to_string())
         };
 
         // ensure uniqueness

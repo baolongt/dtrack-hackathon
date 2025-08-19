@@ -14,7 +14,7 @@ type SetTransactionLabelRequest = record {
 type Result_3 = variant { Ok : vec LabeledTransaction; Err : text };
 type CustomTransaction = record {
   id : text;
-  date : text;
+  timestamp_ms : nat64;
   label : TransactionLabel;
   amount : nat64;
 };
