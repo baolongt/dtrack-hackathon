@@ -11,13 +11,14 @@ import { truncatePrincipal } from "../../lib/utils";
 import { ClipboardCopyIcon } from "@radix-ui/react-icons";
 import { useAccounts } from "../../hooks/useAccounts";
 
-
 export function LabeledAccounts() {
-  const { accounts, isLoading, error, addAccount, removeAccount } = useAccounts();
+  const { accounts, addAccount, removeAccount } = useAccounts();
   const [newOwner, setNewOwner] = React.useState("");
   const [newLabel, setNewLabel] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
-  const [removingAccount, setRemovingAccount] = React.useState<string | null>(null);
+  const [removingAccount, setRemovingAccount] = React.useState<string | null>(
+    null
+  );
   const [copiedAccount, setCopiedAccount] = React.useState<string | null>(null);
 
   const handleAddAccount = async () => {
@@ -97,9 +98,24 @@ export function LabeledAccounts() {
               className="w-full md:w-auto"
             >
               {isAdding ? (
-                <svg className="animate-spin h-4 w-4 mr-2 text-white" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                <svg
+                  className="animate-spin h-4 w-4 mr-2 text-white"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                  />
                 </svg>
               ) : null}
               {isAdding ? "Adding..." : "Add Account"}
@@ -161,12 +177,29 @@ export function LabeledAccounts() {
                     onClick={() => handleRemoveAccount(account.owner)}
                   >
                     {removingAccount === account.owner ? (
-                      <svg className="animate-spin h-4 w-4 mr-2 text-white" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      <svg
+                        className="animate-spin h-4 w-4 mr-2 text-white"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
                       </svg>
                     ) : null}
-                    {removingAccount === account.owner ? "Removing..." : "Remove"}
+                    {removingAccount === account.owner
+                      ? "Removing..."
+                      : "Remove"}
                   </Button>
                 </div>
               </div>

@@ -8,8 +8,6 @@ import tailwindcss from "@tailwindcss/vite";
 
 dotenv.config({ path: "../../.env" });
 
-process.env.II_URL = `https://identity.ic0.app`;
-
 export default defineConfig({
   build: {
     emptyOutDir: true,
@@ -27,24 +25,10 @@ export default defineConfig({
       },
     },
   },
-  server: {
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:3000",
-        changeOrigin: true,
-        bypass: function (req) {
-        if (req.url === "/api/v2/status") {
-          return req.url;
-        }
-      },
-      },
-    },
-  },
   plugins: [
     react(),
     environment("all", { prefix: "CANISTER_" }),
     environment("all", { prefix: "DFX_" }),
     tailwindcss(),
-    environment(["II_URL"]),
   ],
 });

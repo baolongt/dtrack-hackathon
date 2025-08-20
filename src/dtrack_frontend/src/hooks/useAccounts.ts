@@ -5,6 +5,7 @@ import { canisterId, createActor } from "../../../declarations/dtrack_backend";
 import { canisterId as ledgerCanisterId, createActor as ledgerCreateActor } from "../../../declarations/icp_ledger_canister";
 import { canisterId as indexCanisterId, createActor as indexCreateActor } from "../../../declarations/icp_index_canister";
 import { icpToUsd } from "../lib/utils";
+import { host, shouldFetchRootKey } from "../lib/env";
 import { AccountIdentifier } from "@dfinity/ledger-icp";
 
 export interface LabeledAccount {
@@ -23,48 +24,36 @@ export interface Transaction {
     isCustom?: boolean;
 }
 
+const actor = createActor(canisterId, {
+    agentOptions: {
+        fetch,
+        host,
+        shouldFetchRootKey,
+    },
+});
+
+const ledgerActor = ledgerCreateActor(ledgerCanisterId, {
+    agentOptions: {
+        fetch,
+        host,
+        shouldFetchRootKey,
+    },
+});
+
+const indexActor = indexCreateActor(indexCanisterId, {
+    agentOptions: {
+        fetch,
+        host,
+        shouldFetchRootKey,
+    },
+});
+
 export function useAccounts() {
-    const actor = React.useMemo(
-        () =>
-            createActor(canisterId, {
-                agentOptions: {
-                    fetch,
-                    host: process.env.DFX_NETWORK === "local" ? "http://127.0.0.1:8080" : "https://ic0.app",
-                    shouldFetchRootKey: process.env.DFX_NETWORK === "local" ? true : false,
-                },
-            }),
-        []
-    );
-
-    const ledgerActor = React.useMemo(
-        () =>
-            ledgerCreateActor(ledgerCanisterId, {
-                agentOptions: {
-                    fetch,
-                    host: process.env.DFX_NETWORK === "local" ? "http://127.0.0.1:8080" : "https://ic0.app",
-                    shouldFetchRootKey: process.env.DFX_NETWORK === "local" ? true : false,
-                },
-            }),
-        []
-    );
-
-    const indexActor = React.useMemo(
-        () =>
-            indexCreateActor(indexCanisterId, {
-                agentOptions: {
-                    fetch,
-                    host: process.env.DFX_NETWORK === "local" ? "http://127.0.0.1:8080" : "https://ic0.app",
-                    shouldFetchRootKey: process.env.DFX_NETWORK === "local" ? true : false,
-                },
-            }),
-        []
-    );
-
     const [accounts, setAccounts] = React.useState<LabeledAccount[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
-    const fetchAccounts = React.useCallback(async () => {
+    async function fetchAccounts() {
         setIsLoading(true);
         setError(null);
         try {
@@ -231,150 +220,128 @@ export function useAccounts() {
         } finally {
             setIsLoading(false);
         }
-    }, [actor, ledgerActor, indexActor]);
+    }
 
-    const updateTransactionLabel = React.useCallback(
-        async (transactionId: string, label: string) => {
-            try {
-                // transactionId is string here; backend expects nat64 for index tx labels
-                // attempt to convert to BigInt if numeric
-                const maybeId = /^\d+$/.test(transactionId) ? BigInt(transactionId) : (transactionId as any);
-                const result = await actor.set_transaction_label({
-                    transaction_id: maybeId,
-                    label,
-                });
-                if ("Ok" in result) {
-                    await fetchAccounts();
-                    return true;
-                } else {
-                    throw new Error(result.Err);
-                }
-            } catch (e) {
-                throw new Error(e instanceof Error ? e.message : "Failed to update label");
+    async function updateTransactionLabel(transactionId: string, label: string) {
+        try {
+            // transactionId is string here; backend expects nat64 for index tx labels
+            // attempt to convert to BigInt if numeric
+            const maybeId = /^\d+$/.test(transactionId) ? BigInt(transactionId) : (transactionId as any);
+            const result = await actor.set_transaction_label({
+                transaction_id: maybeId,
+                label,
+            });
+            if ("Ok" in result) {
+                await fetchAccounts();
+                return true;
+            } else {
+                throw new Error(result.Err);
             }
-        },
-        [actor, fetchAccounts]
-    );
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : "Failed to update label");
+        }
+    }
 
-    const createCustomTransaction = React.useCallback(
-        async (tx: { timestamp_ms: number; label: string; amount: number }) => {
-            try {
-                // amount: dollars -> cents as nat64
-                const amountCents = BigInt(Math.round(tx.amount * 100));
-                const timestampNat = BigInt(Math.round(tx.timestamp_ms));
-                const result = await actor.create_custom_transaction({
-                    transaction: {
-                        id: "", // backend can assign id if needed
-                        timestamp_ms: timestampNat,
-                        label: tx.label,
-                        amount: amountCents,
-                    },
-                });
-                if ("Ok" in result) {
-                    await fetchAccounts();
-                    return { ok: true, id: result.Ok };
-                } else {
-                    throw new Error(result.Err);
-                }
-            } catch (e) {
-                throw new Error(e instanceof Error ? e.message : "Failed to create custom transaction");
-            }
-        },
-        [actor, fetchAccounts]
-    );
-
-    const updateCustomTransaction = React.useCallback(
-        async (tx: { id: string; timestamp_ms: number; label: string; amount: number }) => {
-            try {
-                const amountCents = BigInt(Math.round(tx.amount * 100));
-                const timestampNat = BigInt(Math.round(tx.timestamp_ms));
-                const result = await actor.update_custom_transaction({
-                    id: tx.id,
+    async function createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number }) {
+        try {
+            // amount: dollars -> cents as nat64
+            const amountCents = BigInt(Math.round(tx.amount * 100));
+            const timestampNat = BigInt(Math.round(tx.timestamp_ms));
+            const result = await actor.create_custom_transaction({
+                transaction: {
+                    id: "", // backend can assign id if needed
                     timestamp_ms: timestampNat,
                     label: tx.label,
                     amount: amountCents,
-                });
+                },
+            });
+            if ("Ok" in result) {
+                await fetchAccounts();
+                return { ok: true, id: result.Ok };
+            } else {
+                throw new Error(result.Err);
+            }
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : "Failed to create custom transaction");
+        }
+    }
+
+    async function updateCustomTransaction(tx: { id: string; timestamp_ms: number; label: string; amount: number }) {
+        try {
+            const amountCents = BigInt(Math.round(tx.amount * 100));
+            const timestampNat = BigInt(Math.round(tx.timestamp_ms));
+            const result = await actor.update_custom_transaction({
+                id: tx.id,
+                timestamp_ms: timestampNat,
+                label: tx.label,
+                amount: amountCents,
+            });
+            if ("Ok" in result) {
+                await fetchAccounts();
+                return true;
+            } else {
+                throw new Error(result.Err);
+            }
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : "Failed to update custom transaction");
+        }
+    }
+
+    async function deleteCustomTransaction(id: string) {
+        try {
+            // backend delete_custom_transaction signature may expect nat64; try numeric conversion
+            if (/^\d+$/.test(id)) {
+                const numeric = BigInt(id);
+                const result = await actor.delete_custom_transaction(numeric.toString());
                 if ("Ok" in result) {
                     await fetchAccounts();
                     return true;
                 } else {
                     throw new Error(result.Err);
                 }
-            } catch (e) {
-                throw new Error(e instanceof Error ? e.message : "Failed to update custom transaction");
-            }
-        },
-        [actor, fetchAccounts]
-    );
-
-    const deleteCustomTransaction = React.useCallback(
-        async (id: string) => {
-            try {
-                // backend delete_custom_transaction signature may expect nat64; try numeric conversion
-                if (/^\d+$/.test(id)) {
-                    const numeric = BigInt(id);
-                    const result = await actor.delete_custom_transaction(numeric.toString());
-                    if ("Ok" in result) {
-                        await fetchAccounts();
-                        return true;
-                    } else {
-                        throw new Error(result.Err);
-                    }
+            } else {
+                // if id is non-numeric, try passing as-is (some backends may accept text id via overloaded method)
+                const result = await actor.delete_custom_transaction(id as any);
+                if ("Ok" in result) {
+                    await fetchAccounts();
+                    return true;
                 } else {
-                    // if id is non-numeric, try passing as-is (some backends may accept text id via overloaded method)
-                    const result = await actor.delete_custom_transaction(id as any);
-                    if ("Ok" in result) {
-                        await fetchAccounts();
-                        return true;
-                    } else {
-                        throw new Error(result.Err);
-                    }
+                    throw new Error(result.Err);
                 }
-            } catch (e) {
-                throw new Error(e instanceof Error ? e.message : "Failed to delete custom transaction");
             }
-        },
-        [actor, fetchAccounts]
-    );
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : "Failed to delete custom transaction");
+        }
+    }
 
-    const addAccount = React.useCallback(
-        async (owner: string, label: string) => {
-            try {
-                await actor.create_labeled_account({
-                    label,
-                    account: {
-                        owner: Principal.fromText(owner),
-                        subaccount: [],
-                    },
-                });
-                await fetchAccounts();
-                return true;
-            } catch (e) {
-                throw new Error(e instanceof Error ? e.message : "Failed to add account");
-            }
-        },
-        [actor, fetchAccounts]
-    );
-
-    const removeAccount = React.useCallback(
-        async (owner: string) => {
-            try {
-                await actor.delete_labeled_account({
+    async function addAccount(owner: string, label: string) {
+        try {
+            await actor.create_labeled_account({
+                label,
+                account: {
                     owner: Principal.fromText(owner),
                     subaccount: [],
-                });
-                await fetchAccounts();
-                return true;
-            } catch (e) {
-                throw new Error(e instanceof Error ? e.message : "Failed to remove account");
-            }
-        },
-        [actor, fetchAccounts]
-    );
+                },
+            });
+            await fetchAccounts();
+            return true;
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : "Failed to add account");
+        }
+    }
 
-    React.useEffect(() => {
-        fetchAccounts();
-    }, [fetchAccounts]);
+    async function removeAccount(owner: string) {
+        try {
+            await actor.delete_labeled_account({
+                owner: Principal.fromText(owner),
+                subaccount: [],
+            });
+            await fetchAccounts();
+            return true;
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : "Failed to remove account");
+        }
+    }
 
     return {
         accounts,

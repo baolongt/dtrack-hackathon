@@ -1,4 +1,3 @@
-import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,10 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useInternetIdentity } from "ic-use-internet-identity";
-import {
-  TransactionChartTabs,
-  TransactionDataChartLine,
-} from "./components/app/Chart";
+import { TransactionChartTabs } from "./components/app/Chart";
 import { TransactionHistory } from "./components/app/TransactionHistory";
 import { LabeledAccounts } from "./components/app/LabeledAccounts";
 import { FinancialOverview } from "./components/app/FinancialOverview";

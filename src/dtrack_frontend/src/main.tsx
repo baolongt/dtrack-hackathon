@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { InternetIdentityProvider } from "ic-use-internet-identity";
 import App from "./App";
 import "./index.css";
+import { identityProviderHost } from "./lib/env";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -11,7 +12,11 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <InternetIdentityProvider>
+    <InternetIdentityProvider
+      loginOptions={{
+        identityProvider: identityProviderHost,
+      }}
+    >
       <App />
     </InternetIdentityProvider>
   </React.StrictMode>

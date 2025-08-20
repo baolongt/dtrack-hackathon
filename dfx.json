@@ -1,7 +1,8 @@
 {
   "canisters": {
     "dtrack_backend": {
-      "candid": "src/dtrack_backend/dtrack_backend.did",
+      "candid": "./target/artifacts/dtrack_backend.did",
+      "wasm": "./target/artifacts/dtrack_backend.wasm.gz",
       "package": "dtrack_backend",
       "type": "rust"
     },
@@ -13,13 +14,74 @@
     },
     "icp_index_canister": {
       "type": "custom",
-      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/index.did",
-      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-07-04/ic-icp-index-canister.wasm.gz"
+      "candid": "./target/artifacts/icp-index-canister.did",
+      "wasm": "./target/artifacts/icp-index-canister.wasm.gz"
     },
     "icp_ledger_canister": {
       "type": "custom",
-      "candid": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-08-15/ledger.did",
-      "wasm": "https://github.com/dfinity/ic/releases/download/ledger-suite-icp-2025-08-15/ledger-archive-node-canister.wasm.gz"
+      "candid": "./target/artifacts/ledger-suite-icp.did",
+      "wasm": "./target/artifacts/ledger-suite-icp.wasm.gz",
+      "specified_id": "ryjl3-tyaaa-aaaaa-aaaba-cai",
+      "remote": {
+        "id": {
+          "ic": "ryjl3-tyaaa-aaaaa-aaaba-cai"
+        }
+      }
+    },
+    "ckBTC": {
+      "type": "custom",
+      "candid": "./target/artifacts/ledger-suite-icrc.did",
+      "wasm": "./target/artifacts/ledger-suite-icrc.wasm.gz",
+      "specified_id": "mxzaz-hqaaa-aaaar-qaada-cai",
+      "remote": {
+        "id": {
+          "ic": "mxzaz-hqaaa-aaaar-qaada-cai"
+        }
+      }
+    },
+    "ckETH": {
+      "type": "custom",
+      "candid": "./target/artifacts/ledger-suite-icrc.did",
+      "wasm": "./target/artifacts/ledger-suite-icrc.wasm.gz",
+      "specified_id": "ss2fx-dyaaa-aaaar-qacoq-cai",
+      "remote": {
+        "id": {
+          "ic": "ss2fx-dyaaa-aaaar-qacoq-cai"
+        }
+      }
+    },
+    "ckUSDC": {
+      "type": "custom",
+      "candid": "./target/artifacts/ledger-suite-icrc.did",
+      "wasm": "./target/artifacts/ledger-suite-icrc.wasm.gz",
+      "specified_id": "xevnm-gaaaa-aaaar-qafnq-cai",
+      "remote": {
+        "id": {
+          "ic": "xevnm-gaaaa-aaaar-qafnq-cai"
+        }
+      }
+    },
+    "DOGE": {
+      "type": "custom",
+      "candid": "./target/artifacts/ledger-suite-icrc.did",
+      "wasm": "./target/artifacts/ledger-suite-icrc.wasm.gz",
+      "specified_id": "x5qut-viaaa-aaaar-qajda-cai",
+      "remote": {
+        "id": {
+          "ic": "x5qut-viaaa-aaaar-qajda-cai"
+        }
+      }
+    },
+    "internet_identity": {
+      "type": "custom",
+      "candid": "./target/artifacts/internet_identity.did",
+      "wasm": "./target/artifacts/internet_identity.wasm.gz",
+      "specified_id": "rdmx6-jaaaa-aaaaa-aaadq-cai",
+      "remote": {
+        "id": {
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+        }
+      }
     }
   },
   "defaults": {

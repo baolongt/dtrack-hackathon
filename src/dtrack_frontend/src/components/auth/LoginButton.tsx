@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { LogIn, LogOut, User } from "lucide-react";
 
 export function LoginButton() {
-  const { login, loginStatus, identity, clear } = useInternetIdentity();
+  const { login, identity, clear, status } = useInternetIdentity();
 
-  const disabled = loginStatus === "logging-in";
+  const disabled = status === "logging-in";
 
   // Prefer showing the logged-in UI whenever an identity is present
   // (some hooks may restore identity before setting loginStatus to "success")
@@ -32,7 +32,7 @@ export function LoginButton() {
     );
   }
 
-  const text = loginStatus === "logging-in" ? "Logging in..." : "Login";
+  const text = status === "logging-in" ? "Logging in..." : "Login";
 
   return (
     <Button
