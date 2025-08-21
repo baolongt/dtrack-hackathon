@@ -6,7 +6,9 @@ import { canisterId as ledgerCanisterId, createActor as ledgerCreateActor } from
 import { canisterId as indexCanisterId, createActor as indexCreateActor } from "../../../declarations/icp_index_canister";
 import { icpToUsd } from "../lib/utils";
 import { host, shouldFetchRootKey } from "../lib/env";
-import { AccountIdentifier } from "@dfinity/ledger-icp";
+import { Account, AccountIdentifier } from "@dfinity/ledger-icp";
+import { decodeIcrcAccount } from "@dfinity/ledger-icrc";
+import { toNullable } from "@dfinity/utils";
 
 export interface LabeledAccount {
     owner: string;
@@ -314,14 +316,17 @@ export function useAccounts() {
         }
     }
 
-    async function addAccount(owner: string, label: string) {
+    // owner: principal text, label: user label, subaccountHex: optional hex string (e.g. "0xabc..." or "abc...")
+    async function addAccount(account: string, label: string) {
         try {
+            const decodedAccount = decodeIcrcAccount(account);
+            const accountForCall: Account = {
+                owner: decodedAccount.owner,
+                subaccount: toNullable(decodedAccount.subaccount),
+            };
             await actor.create_labeled_account({
                 label,
-                account: {
-                    owner: Principal.fromText(owner),
-                    subaccount: [],
-                },
+                account: accountForCall,
             });
             await fetchAccounts();
             return true;
@@ -330,12 +335,14 @@ export function useAccounts() {
         }
     }
 
-    async function removeAccount(owner: string) {
+    async function removeAccount(account: string) {
         try {
-            await actor.delete_labeled_account({
-                owner: Principal.fromText(owner),
-                subaccount: [],
-            });
+            const decodedAccount = decodeIcrcAccount(account);
+            const accountForCall: Account = {
+                owner: decodedAccount.owner,
+                subaccount: toNullable(decodedAccount.subaccount),
+            };
+            await actor.delete_labeled_account(accountForCall);
             await fetchAccounts();
             return true;
         } catch (e) {

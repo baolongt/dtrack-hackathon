@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { truncatePrincipal } from "../../lib/utils";
 import { ClipboardCopyIcon } from "@radix-ui/react-icons";
 import { useAccounts } from "../../hooks/useAccounts";
+import AddWalletForm from "./wallets/AddWalletForm";
 
 export function LabeledAccounts() {
   const { accounts, addAccount, removeAccount } = useAccounts();
@@ -57,78 +58,13 @@ export function LabeledAccounts() {
 
   return (
     <div className="w-full space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New Account</CardTitle>
-          <CardDescription>
-            Track a new account for monitoring transactions and balance
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Account
-                </label>
-                <input
-                  type="text"
-                  value={newOwner}
-                  onChange={(e) => setNewOwner(e.target.value)}
-                  placeholder="Enter account address..."
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Label
-                </label>
-                <input
-                  type="text"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  placeholder="Enter a label..."
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                />
-              </div>
-            </div>
-            <Button
-              onClick={handleAddAccount}
-              disabled={!newOwner || !newLabel}
-              className="w-full md:w-auto"
-            >
-              {isAdding ? (
-                <svg
-                  className="animate-spin h-4 w-4 mr-2 text-white"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
-                </svg>
-              ) : null}
-              {isAdding ? "Adding..." : "Add Account"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AddWalletForm />
 
       <Card>
         <CardHeader>
-          <CardTitle>Accounts</CardTitle>
+          <CardTitle>Wallet address management</CardTitle>
           <CardDescription>
-            Manage your accounts and their current status
+            Manage your wallets and their current status
           </CardDescription>
         </CardHeader>
         <CardContent>
