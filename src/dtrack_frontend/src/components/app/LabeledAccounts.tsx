@@ -9,11 +9,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { truncatePrincipal } from "../../lib/utils";
 import { ClipboardCopyIcon } from "@radix-ui/react-icons";
-import { useAccounts } from "../../hooks/useAccounts";
 import AddWalletForm from "./wallets/AddWalletForm";
+import { useAccountStore } from "../../stores/account.store";
+import BackendService from "../../services/backend.service";
+import { decodeIcrcAccount } from "@dfinity/ledger-icrc";
+import { toNullable } from "@dfinity/utils";
+import {
+  canisterId,
+  createActor,
+} from "../../../../declarations/dtrack_backend";
+import { host, shouldFetchRootKey } from "../../lib/env";
 
 export function LabeledAccounts() {
-  const { accounts, addAccount, removeAccount } = useAccounts();
+  const accounts = useAccountStore((s) => s.labeledAccounts);
+  const fetchLabledAccount = useAccountStore((s) => s.fetchLabeledAccounts);
   const [newOwner, setNewOwner] = React.useState("");
   const [newLabel, setNewLabel] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
@@ -26,7 +35,17 @@ export function LabeledAccounts() {
     if (newOwner && newLabel) {
       setIsAdding(true);
       try {
-        await addAccount(newOwner, newLabel);
+        const backend = BackendService.getInstance();
+        const decoded = decodeIcrcAccount(newOwner);
+        const accountForCall = {
+          owner: decoded.owner,
+          subaccount: toNullable(decoded.subaccount),
+        };
+        await backend.createLabeledAccount({
+          label: newLabel,
+          account: accountForCall as any,
+        });
+        await fetchLabledAccount();
         setNewOwner("");
         setNewLabel("");
       } catch (e) {
@@ -40,7 +59,14 @@ export function LabeledAccounts() {
   const handleRemoveAccount = async (owner: string) => {
     setRemovingAccount(owner);
     try {
-      await removeAccount(owner);
+      const backend = BackendService.getInstance();
+      const decoded = decodeIcrcAccount(owner);
+      const accountForCall = {
+        owner: decoded.owner,
+        subaccount: toNullable(decoded.subaccount),
+      };
+      await backend.deleteLabeledAccount(accountForCall as any);
+      await fetchLabledAccount();
     } catch (e) {
       alert("Failed to delete account: " + e);
     } finally {

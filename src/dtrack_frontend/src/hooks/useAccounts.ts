@@ -10,21 +10,18 @@ import { Account, AccountIdentifier } from "@dfinity/ledger-icp";
 import { decodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { toNullable } from "@dfinity/utils";
 
-export interface LabeledAccount {
-    owner: string;
-    label: string;
-    balance: number;
-    transactions: Transaction[];
-}
+// new modular helpers
+import { LabeledAccount, Transaction } from "./types";
+import { getLabeledAccounts } from "./useLabeledAccounts";
+import { getBalancesForAccounts } from "./useBalances";
+import { getTransactionLabelsMap } from "./useTransactionLabels";
+import { getIndexTransactionsPerAccount } from "./useIndexTransactions";
 
-export interface Transaction {
-    id: string;                 // unified id as string (index nat64 or custom text)
-    amount: number;             // number in USD (positive for received, negative for sent)
-    timestamp_ms: number;       // unix ms timestamp
-    account: string;            // account label
-    label: string;
-    isCustom?: boolean;
-}
+import BackendService from "../services/backend.service";
+import LedgerService from "../services/ledger.service";
+import IndexService from "../services/index.service";
+
+// types moved to ./types.ts
 
 const actor = createActor(canisterId, {
     agentOptions: {
@@ -50,6 +47,11 @@ const indexActor = indexCreateActor(indexCanisterId, {
     },
 });
 
+// initialize singleton services using the created actors
+const backendService = BackendService.getInstance(actor);
+const ledgerService = LedgerService.getInstance(ledgerActor);
+const indexService = IndexService.getInstance(indexActor);
+
 export function useAccounts() {
     const [accounts, setAccounts] = React.useState<LabeledAccount[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
@@ -60,36 +62,10 @@ export function useAccounts() {
         setError(null);
         try {
             // 1) labeled accounts from backend
-            const result = await actor.get_labeled_accounts();
-            let labeledAccounts: LabeledAccount[] = [];
-
-            if ("Ok" in result) {
-                labeledAccounts = result.Ok.map((addr: any) => ({
-                    owner: addr.account.owner.toText(),
-                    label: addr.label,
-                    balance: 0,
-                    transactions: [],
-                }));
-            } else {
-                throw new Error(result.Err);
-            }
+            const labeledAccounts = await getLabeledAccounts(backendService);
 
             // 2) balances for each labeled account
-            const balances = await Promise.all(
-                labeledAccounts.map(async (account) => {
-                    try {
-                        const balance = await ledgerActor.icrc1_balance_of({
-                            owner: Principal.fromText(account.owner),
-                            subaccount: [],
-                        });
-                        const decimals = await ledgerActor.icrc1_decimals();
-                        // convert to ICP then to USD
-                        return icpToUsd(Number(balance / BigInt(10 ** decimals)));
-                    } catch {
-                        return 0;
-                    }
-                })
-            );
+            const balances = await getBalancesForAccounts(labeledAccounts, ledgerService);
 
             const accountsWithBalances = labeledAccounts.map((acc, i) => ({
                 ...acc,
@@ -97,89 +73,17 @@ export function useAccounts() {
             }));
 
             // 3) fetch transaction labels (single call) and map to string keys
-            let customLabelsMap = new Map<string, string>();
-            try {
-                const labelsRes = await actor.get_transaction_labels();
-                if ("Ok" in labelsRes) {
-                    for (const rec of labelsRes.Ok) {
-                        // rec.id is nat64 in backend; convert to string
-                        customLabelsMap.set(String(rec.id), rec.label);
-                    }
-                }
-            } catch {
-                // ignore label fetch errors
-                customLabelsMap = new Map<string, string>();
-            }
+            const customLabelsMap = await getTransactionLabelsMap(backendService);
 
             // 4) fetch index transactions per account
-            const indexTransactionsPerAccount = await Promise.all(
-                accountsWithBalances.map(async (account) => {
-                    try {
-                        const res = await indexActor.get_account_transactions({
-                            max_results: BigInt(50),
-                            start: [],
-                            account: {
-                                owner: Principal.fromText(account.owner),
-                                subaccount: [],
-                            },
-                        });
-
-                        const temp: Transaction[] = [];
-
-                        if ("Ok" in res) {
-                            for (const trans of res.Ok.transactions) {
-                                if ("Transfer" in trans.transaction.operation) {
-                                    const accountId = AccountIdentifier.fromPrincipal({
-                                        principal: Principal.fromText(account.owner),
-                                    }).toHex();
-
-                                    const to = trans.transaction.operation.Transfer.to;
-                                    const amount_e8s = trans.transaction.operation.Transfer.amount.e8s;
-                                    const isReceived = to === accountId;
-                                    const defaultLabel = isReceived ? "received" : "sent";
-
-                                    // id (nat64) -> string
-                                    const idStr = String(trans.id);
-
-                                    // custom label if exists
-                                    const customLabel = customLabelsMap.get(idStr);
-                                    const finalLabel = customLabel ?? defaultLabel;
-
-                                    // convert e8s -> ICP (float), then to USD via icpToUsd for consistency with balances.
-                                    const icpAmount = Number(amount_e8s) / 1e8;
-                                    const signedIcp = isReceived ? icpAmount : -icpAmount;
-                                    const amountUsd = icpToUsd(signedIcp);
-
-                                    const timestampNanos = trans.transaction.timestamp?.[0]?.timestamp_nanos ?? BigInt(0);
-                                    const timestampMs = Math.trunc(Number(timestampNanos) / 1_000_000);
-
-                                    temp.push({
-                                        id: idStr,
-                                        amount: amountUsd,
-                                        timestamp_ms: timestampMs,
-                                        account: account.label,
-                                        label: finalLabel,
-                                        isCustom: false,
-                                    });
-                                }
-                            }
-                        } else {
-                            // ignore errors per account
-                        }
-
-                        return temp;
-                    } catch {
-                        return [];
-                    }
-                })
-            );
+            const indexTransactionsPerAccount = await getIndexTransactionsPerAccount(accountsWithBalances, indexService, customLabelsMap);
 
             // 5) fetch custom transactions (user-created) and normalize
             let customTransactions: Transaction[] = [];
             try {
-                const customRes = await actor.get_custom_transactions();
-                if ("Ok" in customRes) {
-                    for (const ct of customRes.Ok) {
+                const customRes = await backendService.getCustomTransactions();
+                if (Array.isArray(customRes)) {
+                    for (const ct of customRes) {
                         // ct.id is text, ct.timestamp_ms is nat64 (ms), ct.amount is nat64 (assume cents)
                         const idStr = String(ct.id);
                         // amount: cents -> dollars
@@ -229,15 +133,12 @@ export function useAccounts() {
             // transactionId is string here; backend expects nat64 for index tx labels
             // attempt to convert to BigInt if numeric
             const maybeId = /^\d+$/.test(transactionId) ? BigInt(transactionId) : (transactionId as any);
-            const result = await actor.set_transaction_label({
-                transaction_id: maybeId,
-                label,
-            });
-            if ("Ok" in result) {
+            const result = await backendService.setTransactionLabel(maybeId, label);
+            if (result) {
                 await fetchAccounts();
                 return true;
             } else {
-                throw new Error(result.Err);
+                throw new Error("set_transaction_label failed");
             }
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : "Failed to update label");
@@ -249,19 +150,17 @@ export function useAccounts() {
             // amount: dollars -> cents as nat64
             const amountCents = BigInt(Math.round(tx.amount * 100));
             const timestampNat = BigInt(Math.round(tx.timestamp_ms));
-            const result = await actor.create_custom_transaction({
-                transaction: {
-                    id: "", // backend can assign id if needed
-                    timestamp_ms: timestampNat,
-                    label: tx.label,
-                    amount: amountCents,
-                },
+            const result = await backendService.createCustomTransaction({
+                id: "",
+                timestamp_ms: timestampNat,
+                label: tx.label,
+                amount: amountCents,
             });
-            if ("Ok" in result) {
+            if (result) {
                 await fetchAccounts();
-                return { ok: true, id: result.Ok };
+                return { ok: true, id: result };
             } else {
-                throw new Error(result.Err);
+                throw new Error("create_custom_transaction failed");
             }
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : "Failed to create custom transaction");
@@ -272,17 +171,17 @@ export function useAccounts() {
         try {
             const amountCents = BigInt(Math.round(tx.amount * 100));
             const timestampNat = BigInt(Math.round(tx.timestamp_ms));
-            const result = await actor.update_custom_transaction({
+            const result = await backendService.updateCustomTransaction({
                 id: tx.id,
                 timestamp_ms: timestampNat,
                 label: tx.label,
                 amount: amountCents,
             });
-            if ("Ok" in result) {
+            if (result) {
                 await fetchAccounts();
                 return true;
             } else {
-                throw new Error(result.Err);
+                throw new Error("update_custom_transaction failed");
             }
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : "Failed to update custom transaction");
@@ -291,26 +190,12 @@ export function useAccounts() {
 
     async function deleteCustomTransaction(id: string) {
         try {
-            // backend delete_custom_transaction signature may expect nat64; try numeric conversion
-            if (/^\d+$/.test(id)) {
-                const numeric = BigInt(id);
-                const result = await actor.delete_custom_transaction(numeric.toString());
-                if ("Ok" in result) {
-                    await fetchAccounts();
-                    return true;
-                } else {
-                    throw new Error(result.Err);
-                }
-            } else {
-                // if id is non-numeric, try passing as-is (some backends may accept text id via overloaded method)
-                const result = await actor.delete_custom_transaction(id as any);
-                if ("Ok" in result) {
-                    await fetchAccounts();
-                    return true;
-                } else {
-                    throw new Error(result.Err);
-                }
+            const deleted = await backendService.deleteCustomTransaction(id);
+            if (deleted) {
+                await fetchAccounts();
+                return true;
             }
+            throw new Error("delete_custom_transaction failed");
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : "Failed to delete custom transaction");
         }
@@ -324,7 +209,7 @@ export function useAccounts() {
                 owner: decodedAccount.owner,
                 subaccount: toNullable(decodedAccount.subaccount),
             };
-            await actor.create_labeled_account({
+            await backendService.createLabeledAccount({
                 label,
                 account: accountForCall,
             });
@@ -342,7 +227,7 @@ export function useAccounts() {
                 owner: decodedAccount.owner,
                 subaccount: toNullable(decodedAccount.subaccount),
             };
-            await actor.delete_labeled_account(accountForCall);
+            await backendService.deleteLabeledAccount(accountForCall);
             await fetchAccounts();
             return true;
         } catch (e) {

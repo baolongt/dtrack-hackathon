@@ -11,18 +11,19 @@ import { useAccounts } from "../../../hooks/useAccounts";
 
 export function AddWalletForm() {
   const { addAccount } = useAccounts();
-  const [principal, setPrincipal] = React.useState("");
-  const [subaccount, setSubaccount] = React.useState("");
+  // idValue can be either an account-id (hex) or a principal text depending on mode
+  const [idValue, setIdValue] = React.useState("");
+  const [mode, setMode] = React.useState<"account" | "principal">("principal");
   const [label, setLabel] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
 
   const handleAdd = async () => {
-    if (!principal || !label) return;
+    if (!idValue || !label) return;
     setIsAdding(true);
     try {
-      await addAccount(principal, label, subaccount || undefined);
-      setPrincipal("");
-      setSubaccount("");
+      // pass the entered identifier as the owner string. The hook currently expects a principal text.
+      await addAccount(idValue, label);
+      setIdValue("");
       setLabel("");
     } catch (e) {
       alert("Failed to add wallet: " + e);
@@ -41,47 +42,69 @@ export function AddWalletForm() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Principal
+          <div className="space-y-3">
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-foreground">
+                Input type
               </label>
-              <input
-                type="text"
-                value={principal}
-                onChange={(e) => setPrincipal(e.target.value)}
-                placeholder="Principal (e.g. xxxx-...)"
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"
-              />
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center text-sm">
+                  <input
+                    type="radio"
+                    name="idMode"
+                    checked={mode === "principal"}
+                    onChange={() => setMode("principal")}
+                    className="mr-2"
+                  />
+                  Principal ID
+                </label>
+                <label className="inline-flex items-center text-sm">
+                  <input
+                    type="radio"
+                    name="idMode"
+                    checked={mode === "account"}
+                    onChange={() => setMode("account")}
+                    className="mr-2"
+                  />
+                  Account ID
+                </label>
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                SubAccount (optional)
-              </label>
-              <input
-                type="text"
-                value={subaccount}
-                onChange={(e) => setSubaccount(e.target.value)}
-                placeholder="Hex subaccount (without 0x or with)"
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Label
-              </label>
-              <input
-                type="text"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Enter a label..."
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-              />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  {mode === "principal" ? "Principal ID" : "Account ID"}
+                </label>
+                <input
+                  type="text"
+                  value={idValue}
+                  onChange={(e) => setIdValue(e.target.value)}
+                  placeholder={
+                    mode === "principal"
+                      ? "ur2tx-mciqf-h4p4b-qggnv-arpsc-s3wui-2blbn-aphly-wzoos-iqjik-hae"
+                      : "706d348819f5b7316d497da5c9b3aae2816ffebe01943827f6e66839fcb64641"
+                  }
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Label
+                </label>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="Enter a label..."
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                />
+              </div>
             </div>
           </div>
           <Button
             onClick={handleAdd}
-            disabled={!principal || !label}
+            disabled={!idValue || !label}
             className="w-full md:w-auto"
           >
             {isAdding ? (
