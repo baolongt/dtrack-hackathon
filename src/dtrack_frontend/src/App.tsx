@@ -46,9 +46,10 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(
     !!identity
   );
-  const { setIdentity } = useAccountStore(
+  const { setIdentity, fetchAll } = useAccountStore(
     useShallow((s) => ({
       setIdentity: s.setIdentity,
+      fetchAll: s.fetchAll,
     }))
   );
   const [transactions, setTransactions] = React.useState<any[]>([]); // initial data can be wired later
@@ -57,6 +58,12 @@ const App: React.FC = () => {
   React.useEffect(() => {
     setIsAuthenticated(!!identity);
     setIdentity(identity || null);
+    let triggerFetch = async () => {
+      if (identity) {
+        await fetchAll();
+      }
+    };
+    triggerFetch();
   }, [identity]);
 
   const handleLoginSuccess = () => {
