@@ -6,7 +6,7 @@ import IndexService from '../services/index.service'
 import { Account } from '@dfinity/ledger-icp'
 import { decodeIcrcAccount, encodeIcrcAccount } from '@dfinity/ledger-icrc'
 import { toNullable } from '@dfinity/utils'
-import { getTokenPrice, toIcrcAccount } from '../lib/utils'
+import { convertIndexTxToFrontend, getTokenPrice, toIcrcAccount } from '../lib/utils'
 import { Identity } from '@dfinity/agent'
 
 interface AccountStore {
@@ -117,31 +117,18 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 try {
                     const res = await indexService!.getAccountTransactions(acc.account, 100)
                     const transactions = res.transactions ?? res
-                    const temp: Transaction[] = []
-                    if (Array.isArray(transactions)) {
-                        for (const trans of transactions) {
-                            console.log("trans", trans);
-                            if ("Transfer" in trans.transaction.operation) {
-                                const transfer = trans.transaction.operation.Transfer
-                                const accountId = account_str
-                                const isReceived = transfer.to === accountId
-                                const transferAmount = Number(transfer.amount.e8s) / 1e8
-                                const tokenAmount = isReceived ? transferAmount : -transferAmount
-                                const amountUsd = getTokenPrice(ledger_id, tokenAmount)
-                                const timestampNanos = trans.transaction.timestamp?.[0]?.timestamp_nanos ?? BigInt(0)
+                    const temp: Transaction[] = transactions.map((indexTx) => {
+                        const res = convertIndexTxToFrontend(
+                            indexTx,
+                            acc.label,
+                            account_str,
+                            ledger_id
+                        )
+                        console.log(`convertIndexTxToFrontend result for tx id ${indexTx.id}:`, res);
+                        return res;
+                    }).filter((tx) => tx !== null) as Transaction[] // filter out nulls;
+                    console.log(`fetchIndexTransactions - raw response for account ${account_str}:`, temp);
 
-                                const txObj: Transaction = {
-                                    id: String(trans.id),
-                                    amount: amountUsd,
-                                    timestamp_ms: Math.trunc(Number(timestampNanos) / 1_000_000),
-                                    account: acc.label,
-                                    label: isReceived ? 'received' : 'sent',
-                                }
-                                temp.push(txObj)
-                            }
-                        }
-                    }
-                    console.log(`fetchIndexTransactions - fetched ${temp.length} transactions for account ${account_str}`);
                     return { key: account_str, txs: temp }
                 } catch (err) {
                     console.error(`Failed to fetch transactions for account ${account_str}:`, err)
