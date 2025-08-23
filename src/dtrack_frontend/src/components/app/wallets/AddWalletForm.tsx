@@ -7,10 +7,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useAccounts } from "../../../hooks/useAccounts";
+import useAccountStore from "@/stores/account.store";
 
 export function AddWalletForm() {
-  const { addAccount } = useAccounts();
+  const { addAccount } = useAccountStore();
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
   const [mode, setMode] = React.useState<"account" | "principal">("principal");

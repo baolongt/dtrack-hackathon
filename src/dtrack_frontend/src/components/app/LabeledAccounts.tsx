@@ -18,7 +18,7 @@ import {
   canisterId,
   createActor,
 } from "../../../../declarations/dtrack_backend";
-import { host, shouldFetchRootKey } from "../../lib/env";
+import { HOST, SHOULD_FETCH_ROOT_KEY } from "../../lib/env";
 
 export function LabeledAccounts() {
   const accounts = useAccountStore((s) => s.labeledAccounts);
@@ -35,7 +35,7 @@ export function LabeledAccounts() {
     if (newOwner && newLabel) {
       setIsAdding(true);
       try {
-        const backend = BackendService.getInstance();
+        const backend = BackendService.new();
         const decoded = decodeIcrcAccount(newOwner);
         const accountForCall = {
           owner: decoded.owner,
@@ -59,7 +59,7 @@ export function LabeledAccounts() {
   const handleRemoveAccount = async (owner: string) => {
     setRemovingAccount(owner);
     try {
-      const backend = BackendService.getInstance();
+      const backend = BackendService.new();
       const decoded = decodeIcrcAccount(owner);
       const accountForCall = {
         owner: decoded.owner,

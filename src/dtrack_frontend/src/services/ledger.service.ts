@@ -1,7 +1,8 @@
-import { ActorSubclass } from "@dfinity/agent";
+import { ActorSubclass, Identity } from "@dfinity/agent";
 import { Principal } from "@dfinity/principal";
 import { _SERVICE, Account as LedgerAccount } from "../../../declarations/icp_ledger_canister/icp_ledger_canister.did";
-
+import { canisterId as ledgerCanisterId, createActor as ledgerCreateActor } from "../../../declarations/icp_ledger_canister";
+import { HOST, SHOULD_FETCH_ROOT_KEY } from "@/lib/env";
 export class LedgerService {
     private actor: ActorSubclass<_SERVICE>;
     private constructor(actor: ActorSubclass<_SERVICE>) {
@@ -10,8 +11,16 @@ export class LedgerService {
 
     static instance: LedgerService | null = null;
 
-    static getInstance(actor?: ActorSubclass<_SERVICE>) {
+    static getInstantce(identity?: Identity) {
         if (!LedgerService.instance) {
+            const actor = ledgerCreateActor(ledgerCanisterId, {
+                agentOptions: {
+                    fetch,
+                    host: HOST,
+                    shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
+                    identity
+                },
+            });
             if (!actor) throw new Error("LedgerService not initialized: provide an actor when first calling getInstance");
             LedgerService.instance = new LedgerService(actor);
         }

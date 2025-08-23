@@ -1,8 +1,8 @@
-import { ActorSubclass } from "@dfinity/agent";
+import { ActorSubclass, Identity } from "@dfinity/agent";
 import { Principal } from "@dfinity/principal";
 import { _SERVICE, Account as IndexAccount, GetAccountTransactionsArgs, GetAccountIdentifierTransactionsResponse } from "../../../declarations/icp_index_canister/icp_index_canister.did";
-import { fromNullable } from "@dfinity/utils";
-
+import { canisterId as indexCanisterId, createActor as indexCreateActor } from "../../../declarations/icp_index_canister";
+import { HOST, SHOULD_FETCH_ROOT_KEY } from "@/lib/env";
 export class IndexService {
     private actor: ActorSubclass<_SERVICE>;
     private constructor(actor: ActorSubclass<_SERVICE>) {
@@ -11,8 +11,16 @@ export class IndexService {
 
     static instance: IndexService | null = null;
 
-    static getInstance(actor?: ActorSubclass<_SERVICE>) {
+    static getInstantce(identity?: Identity) {
         if (!IndexService.instance) {
+            const actor = indexCreateActor(indexCanisterId, {
+                agentOptions: {
+                    fetch,
+                    host: HOST,
+                    shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
+                    identity
+                },
+            });
             if (!actor) throw new Error("IndexService not initialized: provide an actor when first calling getInstance");
             IndexService.instance = new IndexService(actor);
         }

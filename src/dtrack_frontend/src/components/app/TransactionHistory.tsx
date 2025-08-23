@@ -16,25 +16,32 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, FileSpreadsheet, Edit, Loader2, Trash2, Plus } from "lucide-react";
+import {
+  FileText,
+  FileSpreadsheet,
+  Edit,
+  Loader2,
+  Trash2,
+  Plus,
+} from "lucide-react";
 import React, { useMemo, useState } from "react";
-import { useAccounts } from "../../hooks/useAccounts";
+import useAccountStore from "@/stores/account.store";
 
 export function TransactionHistory() {
   const {
-    accounts,
+    labeledAccounts,
     updateTransactionLabel,
     updateCustomTransaction,
     deleteCustomTransaction,
     createCustomTransaction,
-    fetchAccounts,
-  } = useAccounts();
+    fetchAll,
+  } = useAccountStore();
 
   const transactions = useMemo(() => {
-    return accounts
+    return labeledAccounts
       .flatMap((account) => account.transactions || [])
       .sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
-  }, [accounts]);
+  }, [labeledAccounts]);
 
   const [editingTx, setEditingTx] = useState<{
     id: string;
@@ -49,7 +56,11 @@ export function TransactionHistory() {
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   // newTx.date holds an HTML datetime-local string (e.g. "2025-08-19T14:30")
-  const [newTx, setNewTx] = useState<{ date: string; label: string; amount: string }>({
+  const [newTx, setNewTx] = useState<{
+    date: string;
+    label: string;
+    amount: string;
+  }>({
     date: "",
     label: "",
     amount: "",
@@ -81,7 +92,7 @@ export function TransactionHistory() {
         // indexed transaction - only label supported by backend
         await updateTransactionLabel(editingTx.id, editingTx.label);
       }
-      await fetchAccounts();
+      await fetchAll();
       setEditingTx(null);
     } catch (e) {
       // minimal error handling
@@ -100,7 +111,7 @@ export function TransactionHistory() {
     try {
       setIsSaving(true);
       await deleteCustomTransaction(id);
-      await fetchAccounts();
+      await fetchAll();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to delete");
     } finally {
@@ -130,7 +141,7 @@ export function TransactionHistory() {
       alert(err instanceof Error ? err.message : "Failed to create");
     } finally {
       setIsCreating(false);
-      await fetchAccounts();
+      await fetchAll();
     }
   };
 
@@ -145,7 +156,9 @@ export function TransactionHistory() {
         const amountNum = Number(tx.amount);
         return {
           "Transaction ID": tx.id,
-          Time: tx.timestamp_ms ? new Date(tx.timestamp_ms).toLocaleString() : "",
+          Time: tx.timestamp_ms
+            ? new Date(tx.timestamp_ms).toLocaleString()
+            : "",
           "Timestamp (ms)": tx.timestamp_ms ?? "",
           Amount: amountNum,
           "Amount (formatted)": currency.format(amountNum),
@@ -177,7 +190,11 @@ export function TransactionHistory() {
       // writeFile triggers download in browser
       XLSX.writeFile(wb, filename);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to generate Excel file. Install 'xlsx' package.");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to generate Excel file. Install 'xlsx' package."
+      );
     } finally {
       setIsDownloading(false);
     }
@@ -194,7 +211,8 @@ export function TransactionHistory() {
       // import the autoTable function. Different bundlers/export styles mean
       // the module might export default or named; handle both.
       const autoTableModule = await import("jspdf-autotable");
-      const autoTableFn = (autoTableModule as any).default ?? (autoTableModule as any);
+      const autoTableFn =
+        (autoTableModule as any).default ?? (autoTableModule as any);
       if (!autoTableFn) throw new Error("jspdf-autotable not available");
 
       const doc: any = new jsPDF({
@@ -217,7 +235,9 @@ export function TransactionHistory() {
           tx.id,
           tx.timestamp_ms ? new Date(tx.timestamp_ms).toLocaleString() : "",
           tx.timestamp_ms ?? "",
-          tx.amount < 0 ? `-${currency.format(Math.abs(amountNum))}` : currency.format(amountNum),
+          tx.amount < 0
+            ? `-${currency.format(Math.abs(amountNum))}`
+            : currency.format(amountNum),
           tx.account,
           tx.label,
           tx.isCustom ? "Yes" : "No",
@@ -252,7 +272,11 @@ export function TransactionHistory() {
       const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
       doc.save(`transactions-${ts}.pdf`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to generate PDF. Install 'jspdf' and 'jspdf-autotable' packages.");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to generate PDF. Install 'jspdf' and 'jspdf-autotable' packages."
+      );
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -265,7 +289,9 @@ export function TransactionHistory() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Transaction History</CardTitle>
-              <CardDescription>View and manage your recent transactions</CardDescription>
+              <CardDescription>
+                View and manage your recent transactions
+              </CardDescription>
             </div>
             <div className="flex gap-2 items-center">
               <Button
@@ -275,7 +301,11 @@ export function TransactionHistory() {
                 className="flex items-center gap-2"
                 disabled={isDownloadingPdf}
               >
-                {isDownloadingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4" />}
+                {isDownloadingPdf ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
                 Download PDF
               </Button>
               <Button
@@ -285,7 +315,11 @@ export function TransactionHistory() {
                 className="flex items-center gap-2"
                 disabled={isDownloading}
               >
-                {isDownloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+                {isDownloading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4" />
+                )}
                 Download Excel
               </Button>
 
@@ -306,7 +340,9 @@ export function TransactionHistory() {
           <CardContent>
             <form onSubmit={handleCreate} className="flex gap-2 items-end">
               <div className="flex flex-col">
-                <label className="text-sm text-muted-foreground">Date & Time</label>
+                <label className="text-sm text-muted-foreground">
+                  Date & Time
+                </label>
                 <input
                   type="datetime-local"
                   value={newTx.date}
@@ -317,12 +353,16 @@ export function TransactionHistory() {
                 />
               </div>
               <div className="flex flex-col">
-                <label className="text-sm text-muted-foreground">Amount (USD)</label>
+                <label className="text-sm text-muted-foreground">
+                  Amount (USD)
+                </label>
                 <input
                   type="number"
                   step="0.01"
                   value={newTx.amount}
-                  onChange={(e) => setNewTx({ ...newTx, amount: e.target.value })}
+                  onChange={(e) =>
+                    setNewTx({ ...newTx, amount: e.target.value })
+                  }
                   className="border rounded p-1"
                   required
                 />
@@ -331,17 +371,26 @@ export function TransactionHistory() {
                 <label className="text-sm text-muted-foreground">Label</label>
                 <input
                   value={newTx.label}
-                  onChange={(e) => setNewTx({ ...newTx, label: e.target.value })}
+                  onChange={(e) =>
+                    setNewTx({ ...newTx, label: e.target.value })
+                  }
                   className="border rounded p-1 w-full"
                   required
                 />
               </div>
               <div className="flex gap-2">
                 <Button type="submit" size="sm" disabled={isCreating}>
-                  {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  {isCreating ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
                   Create
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowCreateForm(false)} disabled={isCreating}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCreateForm(false)}
+                  disabled={isCreating}
+                >
                   Cancel
                 </Button>
               </div>
@@ -364,7 +413,10 @@ export function TransactionHistory() {
             <TableBody>
               {transactions.map((transaction) => (
                 <TableRow key={transaction.id} className="h-13">
-                  <TableCell className="font-mono text-sm font-medium truncate" title={transaction.id}>
+                  <TableCell
+                    className="font-mono text-sm font-medium truncate"
+                    title={transaction.id}
+                  >
                     {transaction.id}
                   </TableCell>
                   <TableCell>
@@ -374,7 +426,9 @@ export function TransactionHistory() {
                   </TableCell>
                   <TableCell className="font-semibold">
                     {transaction.amount < 0
-                      ? `-${currency.format(Math.abs(Number(transaction.amount)))}`
+                      ? `-${currency.format(
+                          Math.abs(Number(transaction.amount))
+                        )}`
                       : currency.format(Number(transaction.amount))}
                   </TableCell>
                   <TableCell className="font-bold">
@@ -386,14 +440,31 @@ export function TransactionHistory() {
                       <div className="flex gap-1 items-center">
                         <input
                           value={editingTx.label}
-                          onChange={(e) => setEditingTx({ ...editingTx, label: e.target.value })}
+                          onChange={(e) =>
+                            setEditingTx({
+                              ...editingTx,
+                              label: e.target.value,
+                            })
+                          }
                           className="border rounded p-1 w-full box-border"
                         />
-                        <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving}>
-                          {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSave}
+                          disabled={isSaving}
+                        >
+                          {isSaving && (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          )}
                           Save
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={handleCancel} disabled={isSaving}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCancel}
+                          disabled={isSaving}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -401,7 +472,11 @@ export function TransactionHistory() {
                       <div className="flex items-center gap-2">
                         <div
                           onClick={() =>
-                            setEditingTx({ id: transaction.id, label: transaction.label, isCustom: transaction.isCustom })
+                            setEditingTx({
+                              id: transaction.id,
+                              label: transaction.label,
+                              isCustom: transaction.isCustom,
+                            })
                           }
                           className="flex-1 flex items-center gap-2 cursor-pointer truncate"
                           title={transaction.label}

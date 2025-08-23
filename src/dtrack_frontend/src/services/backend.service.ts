@@ -1,5 +1,7 @@
-import { ActorSubclass } from "@dfinity/agent";
+import { ActorSubclass, Identity } from "@dfinity/agent";
 import { _SERVICE, CustomTransaction, CreateCustomTransactionRequest, CreateLabeledAccountRequest, Account, SetTransactionLabelRequest } from "../../../declarations/dtrack_backend/dtrack_backend.did";
+import { canisterId, createActor } from "../../../declarations/dtrack_backend";
+import { HOST, SHOULD_FETCH_ROOT_KEY } from "@/lib/env";
 
 // BackendService: singleton wrapper around the backend actor to centralize call handling
 export class BackendService {
@@ -10,8 +12,16 @@ export class BackendService {
 
     static instance: BackendService | null = null;
 
-    static getInstance(actor?: ActorSubclass<_SERVICE>) {
+    static getInstance(identity?: Identity) {
         if (!BackendService.instance) {
+            const actor = createActor(canisterId, {
+                agentOptions: {
+                    fetch,
+                    host: HOST,
+                    shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
+                    identity
+                },
+            });
             if (!actor) throw new Error("BackendService not initialized: provide an actor when first calling getInstance");
             BackendService.instance = new BackendService(actor);
         }
