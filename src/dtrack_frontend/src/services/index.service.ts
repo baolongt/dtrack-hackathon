@@ -1,8 +1,8 @@
 import { ActorSubclass, Identity } from "@dfinity/agent";
-import { Principal } from "@dfinity/principal";
-import { _SERVICE, Account as IndexAccount, GetAccountTransactionsArgs, GetAccountIdentifierTransactionsResponse } from "../../../declarations/icp_index_canister/icp_index_canister.did";
-import { canisterId as indexCanisterId, createActor as indexCreateActor } from "../../../declarations/icp_index_canister";
+import { _SERVICE, GetAccountIdentifierTransactionsResponse } from "../../../declarations/icp_index_canister/icp_index_canister.did";
+import { createActor as indexCreateActor } from "../../../declarations/icp_index_canister";
 import { HOST, SHOULD_FETCH_ROOT_KEY } from "@/lib/env";
+import { Account } from "@dfinity/ledger-icp";
 export class IndexService {
     private actor: ActorSubclass<_SERVICE>;
     private constructor(actor: ActorSubclass<_SERVICE>) {
@@ -11,9 +11,9 @@ export class IndexService {
 
     static instance: IndexService | null = null;
 
-    static getInstantce(identity?: Identity) {
+    static getInstantce(canister_id: string, identity?: Identity) {
         if (!IndexService.instance) {
-            const actor = indexCreateActor(indexCanisterId, {
+            const actor = indexCreateActor(canister_id, {
                 agentOptions: {
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
@@ -26,14 +26,12 @@ export class IndexService {
         return IndexService.instance;
     }
 
-    async getAccountTransactions(ownerText: string, subaccount?: Uint8Array | number[] | null, maxResults: bigint = BigInt(50)): Promise<GetAccountIdentifierTransactionsResponse> {
-        const owner = Principal.fromText(ownerText);
-        const account: IndexAccount = { owner, subaccount: subaccount ? [Array.from(subaccount as Uint8Array | number[])] : [] };
+    async getAccountTransactions(account: Account, maxResults: number): Promise<GetAccountIdentifierTransactionsResponse> {
         const res = await this.actor.get_account_transactions({
-            max_results: maxResults,
+            max_results: BigInt(maxResults),
             start: [],
             account,
-        } as GetAccountTransactionsArgs);
+        });
         if ("Ok" in res) return res.Ok;
         throw new Error((res as any).Err || "get_account_transactions failed");
     }

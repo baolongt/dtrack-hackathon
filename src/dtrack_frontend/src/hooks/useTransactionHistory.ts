@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import useAccountStore from "@/stores/account.store";
 import type { Transaction } from "@/hooks/types";
 import { useShallow } from "zustand/shallow";
@@ -6,26 +6,25 @@ import { useShallow } from "zustand/shallow";
 export function useTransactionHistory() {
     const {
         labeledAccounts,
+        isLoadingIndex,
         updateTransactionLabel,
         updateCustomTransaction,
         deleteCustomTransaction,
         createCustomTransaction,
+        fetchIndexTransactions,
         fetchAll,
     } = useAccountStore(useShallow((s) => ({
         labeledAccounts: s.labeledAccounts,
+        isLoadingIndex: s.isLoadingIndex,
         updateTransactionLabel: s.updateTransactionLabel,
         updateCustomTransaction: s.updateCustomTransaction,
         deleteCustomTransaction: s.deleteCustomTransaction,
         createCustomTransaction: s.createCustomTransaction,
+        fetchIndexTransactions: s.fetchIndexTransactions,
         fetchAll: s.fetchAll,
     })));
 
-    const transactions: Transaction[] = useMemo(() => {
-        return labeledAccounts
-            .flatMap((account) => account.transactions || [])
-            .sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
-    }, [labeledAccounts]);
-
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [editingTx, setEditingTx] = useState<{
         id: string;
         label: string;
@@ -47,6 +46,16 @@ export function useTransactionHistory() {
         label: "",
         amount: "",
     });
+
+    useEffect(() => {
+        // Flatten transactions from all labeled accounts
+        const allTxs: Transaction[] = labeledAccounts
+            .flatMap((account) => account.transactions || [])
+            .sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
+        setTransactions(allTxs);
+        console.log("useTransactionHistory - allTxs:", allTxs);
+    }, [isLoadingIndex]);
+
 
     const currency = useMemo(
         () =>
@@ -267,6 +276,7 @@ export function useTransactionHistory() {
         handleCreate,
         handleDownloadExcel,
         handleDownloadPDF,
+        fetchIndexTransactions,
         fetchAll,
     };
 }

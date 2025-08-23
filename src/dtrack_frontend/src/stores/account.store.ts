@@ -3,20 +3,14 @@ import { LabeledAccount, Transaction } from '../hooks/types'
 import BackendService from '../services/backend.service'
 import LedgerService from '../services/ledger.service'
 import IndexService from '../services/index.service'
-import { AccountIdentifier, Account } from '@dfinity/ledger-icp'
-import { decodeIcrcAccount } from '@dfinity/ledger-icrc'
-import { Principal } from '@dfinity/principal'
+import { Account } from '@dfinity/ledger-icp'
+import { decodeIcrcAccount, encodeIcrcAccount } from '@dfinity/ledger-icrc'
 import { toNullable } from '@dfinity/utils'
-import { icpToUsd } from '../lib/utils'
+import { getTokenPrice, toIcrcAccount } from '../lib/utils'
 import { Identity } from '@dfinity/agent'
-
-type BalancesMap = Record<string, number> // keyed by account owner (principal text)
-type IndexTxMap = Record<string, Transaction[]>
 
 interface AccountStore {
     labeledAccounts: LabeledAccount[]
-    balances: BalancesMap
-    indexTxs: IndexTxMap
     identity: Identity | null
     isLoadingLabeled: boolean
     isLoadingBalances: boolean
@@ -42,8 +36,6 @@ interface AccountStore {
 
 export const useAccountStore = create<AccountStore>((set, get) => ({
     labeledAccounts: [],
-    balances: {},
-    indexTxs: {},
     identity: null,
     isLoadingLabeled: false,
     isLoadingBalances: false,
@@ -59,13 +51,14 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         let backendService = BackendService.getInstance(get().identity || undefined)
         set({ isLoadingLabeled: true, error: null })
         try {
-            const res = await backendService.getLabeledAccounts()
-            const labeled = res.map((addr: { account: { owner: { toText: () => string } }; label: string }) => ({
-                owner: addr.account.owner.toText(),
-                label: addr.label,
+            const res = await backendService.getLabeledAccounts();
+            const labeled: LabeledAccount[] = res.map((item) => ({
+                account: item.account,
+                label: item.label,
                 balance: 0,
                 transactions: [],
-            })) as LabeledAccount[]
+            }))
+
             set({ labeledAccounts: labeled })
         } catch (e) {
             set({ error: e instanceof Error ? e.message : String(e) })
@@ -74,8 +67,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async fetchBalances() {
+    async fetchBalances(
+        ledger_id = process.env.CANISTER_ID_ICP_LEDGER_CANISTER || ""
+    ) {
         let ledgerService = LedgerService.getInstantce(
+            ledger_id,
             get().identity || undefined
         )
         if (!ledgerService) throw new Error('LedgerService not initialized')
@@ -84,17 +80,18 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         set({ isLoadingBalances: true, error: null })
         try {
             const decimals = await ledgerService.decimals()
-            const newBalances: BalancesMap = {}
-            await Promise.all(labeled.map(async (acc: LabeledAccount) => {
+            const currentLabeled = get().labeledAccounts || []
+            const updated = await Promise.all(currentLabeled.map(async (acc: LabeledAccount) => {
                 try {
-                    const bal = await ledgerService!.balanceOf(acc.owner, [])
-                    const icp = Number(bal) / Math.pow(10, decimals)
-                    newBalances[acc.owner] = icpToUsd(icp)
+                    const bal = await ledgerService!.balanceOf(acc.account)
+                    const token = Number(bal) / Math.pow(10, decimals)
+                    const usd = getTokenPrice(ledger_id, token)
+                    return { ...acc, balance: usd }
                 } catch {
-                    newBalances[acc.owner] = 0
+                    return { ...acc, balance: 0 }
                 }
             }))
-            set({ balances: newBalances })
+            set({ labeledAccounts: updated })
         } catch (e) {
             set({ error: e instanceof Error ? e.message : String(e) })
         } finally {
@@ -102,44 +99,78 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async fetchIndexTransactions() {
+    async fetchIndexTransactions(
+        index_id = process.env.CANISTER_ID_ICP_INDEX_CANISTER || "",
+        ledger_id = process.env.CANISTER_ID_ICP_LEDGER_CANISTER || ""
+    ) {
         const indexService = IndexService.getInstantce(
+            index_id,
             get().identity || undefined
         )
-        const labeled = get().labeledAccounts
-        if (!labeled || labeled.length === 0) return
+        const accounts = get().labeledAccounts
+        if (!accounts || accounts.length === 0) return
         set({ isLoadingIndex: true, error: null })
         try {
-            const txMap: IndexTxMap = {}
-            await Promise.all(labeled.map(async (acc: LabeledAccount) => {
+            // Build per-account tasks, await them, then assemble txMap from results
+            const tasks = accounts.map(async (acc: LabeledAccount) => {
+                const account_str = encodeIcrcAccount(toIcrcAccount(acc.account))
                 try {
-                    const res = await indexService!.getAccountTransactions(acc.owner, undefined, BigInt(50))
+                    const res = await indexService!.getAccountTransactions(acc.account, 100)
                     const transactions = res.transactions ?? res
                     const temp: Transaction[] = []
                     if (Array.isArray(transactions)) {
                         for (const trans of transactions) {
+                            console.log("trans", trans);
                             if ("Transfer" in trans.transaction.operation) {
-                                const accountId = AccountIdentifier.fromPrincipal({ principal: Principal.fromText(acc.owner) }).toHex()
-                                const to = trans.transaction.operation.Transfer.to
-                                const amount_e8s = trans.transaction.operation.Transfer.amount.e8s
-                                const isReceived = to === accountId
-                                const defaultLabel = isReceived ? 'received' : 'sent'
-                                const idStr = String(trans.id)
-                                const icpAmount = Number(amount_e8s) / 1e8
-                                const signedIcp = isReceived ? icpAmount : -icpAmount
-                                const amountUsd = icpToUsd(signedIcp)
+                                const transfer = trans.transaction.operation.Transfer
+                                const accountId = account_str
+                                const isReceived = transfer.to === accountId
+                                const transferAmount = Number(transfer.amount.e8s) / 1e8
+                                const tokenAmount = isReceived ? transferAmount : -transferAmount
+                                const amountUsd = getTokenPrice(ledger_id, tokenAmount)
                                 const timestampNanos = trans.transaction.timestamp?.[0]?.timestamp_nanos ?? BigInt(0)
-                                const timestampMs = Math.trunc(Number(timestampNanos) / 1_000_000)
-                                temp.push({ id: idStr, amount: amountUsd, timestamp_ms: timestampMs, account: acc.label, label: defaultLabel })
+
+                                const txObj: Transaction = {
+                                    id: String(trans.id),
+                                    amount: amountUsd,
+                                    timestamp_ms: Math.trunc(Number(timestampNanos) / 1_000_000),
+                                    account: acc.label,
+                                    label: isReceived ? 'received' : 'sent',
+                                }
+                                temp.push(txObj)
                             }
                         }
                     }
-                    txMap[acc.owner] = temp
-                } catch {
-                    txMap[acc.owner] = []
+                    console.log(`fetchIndexTransactions - fetched ${temp.length} transactions for account ${account_str}`);
+                    return { key: account_str, txs: temp }
+                } catch (err) {
+                    console.error(`Failed to fetch transactions for account ${account_str}:`, err)
+                    return { key: account_str, txs: [] }
                 }
-            }))
-            set({ indexTxs: txMap })
+            })
+
+            console.log("fetchIndexTransactions - tasks created:", tasks.length);
+
+            const settled = await Promise.allSettled(tasks)
+            const txMap: Record<string, Transaction[]> = {}
+            for (const r of settled) {
+                console.log("fetchIndexTransactions - task result:", r);
+                if (r.status === 'fulfilled') {
+                    txMap[r.value.key] = r.value.txs
+                } else {
+                    // rejected: r.reason may have useful info but we already logged per-task
+                }
+            }
+
+            console.log("fetchIndexTransactions - txMap:", txMap);
+
+            // map txMap onto current labeled accounts so consumers re-render
+            const currentLabeled = get().labeledAccounts || []
+            const updatedLabeled = currentLabeled.map((acc) => {
+                const key = encodeIcrcAccount(toIcrcAccount(acc.account))
+                return { ...acc, transactions: txMap[key] ?? [] }
+            })
+            set({ labeledAccounts: updatedLabeled })
         } catch (e) {
             set({ error: e instanceof Error ? e.message : String(e) })
         } finally {
@@ -149,8 +180,10 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
 
     async fetchAll() {
         await get().fetchLabeledAccounts()
-        await get().fetchBalances()
-        await get().fetchIndexTransactions()
+        await Promise.allSettled([
+            get().fetchBalances(),
+            get().fetchIndexTransactions()
+        ])
     },
 
     async updateTransactionLabel(transactionId: string, label: string) {
@@ -257,7 +290,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
     },
 
     clear() {
-        set({ labeledAccounts: [], balances: {}, indexTxs: {}, error: null })
+        set({ labeledAccounts: [], error: null })
     },
 }))
 

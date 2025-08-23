@@ -23,6 +23,7 @@ import {
   Loader2,
   Trash2,
   Plus,
+  RefreshCw,
 } from "lucide-react";
 import useTransactionHistory from "@/hooks/useTransactionHistory";
 
@@ -46,6 +47,7 @@ export function TransactionHistory() {
     handleCreate,
     handleDownloadExcel,
     handleDownloadPDF,
+    fetchIndexTransactions,
   } = useTransactionHistory();
 
   return (
@@ -60,6 +62,15 @@ export function TransactionHistory() {
               </CardDescription>
             </div>
             <div className="flex gap-2 items-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => await fetchIndexTransactions()}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

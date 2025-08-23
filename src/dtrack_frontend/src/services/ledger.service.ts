@@ -1,8 +1,8 @@
 import { ActorSubclass, Identity } from "@dfinity/agent";
-import { Principal } from "@dfinity/principal";
 import { _SERVICE, Account as LedgerAccount } from "../../../declarations/icp_ledger_canister/icp_ledger_canister.did";
-import { canisterId as ledgerCanisterId, createActor as ledgerCreateActor } from "../../../declarations/icp_ledger_canister";
+import { createActor as ledgerCreateActor } from "../../../declarations/icp_ledger_canister";
 import { HOST, SHOULD_FETCH_ROOT_KEY } from "@/lib/env";
+import { Account } from "@dfinity/ledger-icp";
 export class LedgerService {
     private actor: ActorSubclass<_SERVICE>;
     private constructor(actor: ActorSubclass<_SERVICE>) {
@@ -11,9 +11,9 @@ export class LedgerService {
 
     static instance: LedgerService | null = null;
 
-    static getInstantce(identity?: Identity) {
+    static getInstantce(ledger_id: string, identity?: Identity) {
         if (!LedgerService.instance) {
-            const actor = ledgerCreateActor(ledgerCanisterId, {
+            const actor = ledgerCreateActor(ledger_id, {
                 agentOptions: {
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
@@ -26,9 +26,7 @@ export class LedgerService {
         return LedgerService.instance;
     }
 
-    async balanceOf(ownerText: string, subaccount?: Uint8Array | number[] | null): Promise<bigint> {
-        const owner = Principal.fromText(ownerText);
-        const account: LedgerAccount = { owner, subaccount: subaccount ? [subaccount as Uint8Array | number[]] : [] };
+    async balanceOf(account: Account): Promise<bigint> {
         const res = await this.actor.icrc1_balance_of(account);
         return res;
     }

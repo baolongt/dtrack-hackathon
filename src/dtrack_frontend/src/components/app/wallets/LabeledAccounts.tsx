@@ -9,13 +9,12 @@ import useAccountStore from "@/stores/account.store";
 import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddWalletForm from "./AddWalletForm";
-import { truncatePrincipal } from "@/lib/utils";
+import { toIcrcAccount, truncateAccount, truncatePrincipal } from "@/lib/utils";
 import { useShallow } from "zustand/shallow";
-import { toast } from "sonner";
-import { useEffect } from "react";
+import { encodeIcrcAccount } from "@dfinity/ledger-icrc";
 
 export function LabeledAccounts() {
-  const { accounts } = useAccountStore(
+  const { accounts: labeledAccounts } = useAccountStore(
     useShallow((s) => {
       return {
         accounts: s.labeledAccounts,
@@ -38,25 +37,25 @@ export function LabeledAccounts() {
 
         <CardContent>
           <div className="space-y-4">
-            {accounts.map((account) => (
+            {labeledAccounts.map((labeledAcc, i) => (
               <div
-                key={account.owner}
+                key={i}
                 className="flex items-center justify-between p-4 border rounded-lg bg-card"
               >
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-foreground">
-                      {account.label}
+                      {labeledAcc.label}
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-mono text-muted-foreground">
-                      {truncatePrincipal(account.owner)}
+                      {truncateAccount(labeledAcc.account)}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span className="font-semibold">
-                      Balance: ${account.balance.toLocaleString()}
+                      Balance: ${labeledAcc.balance.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -65,10 +64,12 @@ export function LabeledAccounts() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`Copy ${account.label} principal`}
+                    aria-label={`Copy ${labeledAcc.label} principal`}
                     className="flex items-center gap-2 text-foreground/90 hover:underline"
                     onClick={async () => {
-                      await navigator.clipboard.writeText(account.owner);
+                      await navigator.clipboard.writeText(
+                        encodeIcrcAccount(toIcrcAccount(labeledAcc.account))
+                      );
                     }}
                   >
                     <Copy className="h-4 w-4" />
@@ -78,19 +79,21 @@ export function LabeledAccounts() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    aria-label={`Remove ${account.label}`}
+                    aria-label={`Remove ${labeledAcc.label}`}
                     className="text-red-600 hover:text-red-700"
                     onClick={async () => {
                       // Ask for confirmation before deleting
                       // eslint-disable-next-line no-restricted-globals
                       const ok = window.confirm(
-                        `Remove account '${account.label}'?`
+                        `Remove account '${labeledAcc.label}'?`
                       );
                       if (!ok) return;
                       try {
                         const removed = await useAccountStore
                           .getState()
-                          .removeAccount(account.owner);
+                          .removeAccount(
+                            encodeIcrcAccount(toIcrcAccount(labeledAcc.account))
+                          );
                         if (!removed) {
                           // eslint-disable-next-line no-alert
                           window.alert("Failed to remove account");

@@ -1,5 +1,7 @@
+import { Account } from "@dfinity/ledger-icp";
+
 export interface LabeledAccount {
-    owner: string;
+    account: Account;
     label: string;
     balance: number;
     transactions: Transaction[];
