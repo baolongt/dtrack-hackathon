@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Link,
-  useLocation,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useInternetIdentity } from "ic-use-internet-identity";
 import DashboardPage from "@/components/pages/Dashboard";
 import HistoryPage from "@/components/pages/History";
@@ -21,20 +15,24 @@ import {
 } from "@/components/ui/card";
 import Header from "./components/app/layout/Header";
 import HomeSidebar from "./components/app/layout/HomeSidebar";
+import useAccountStore from "./stores/account.store";
+import { useShallow } from "zustand/shallow";
 
 // Login required screen (reused)
 function LoginRequired() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-md mx-auto shadow-lg">
+        <CardHeader className="text-center p-6">
           <CardTitle className="text-2xl">Welcome to DTrack</CardTitle>
-          <CardDescription>
+          <CardDescription className="mt-2">
             Please login with Internet Identity to access your dashboard
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center">
-          <LoginButton />
+        <CardContent className="flex justify-center p-6">
+          <div className="w-full flex justify-center">
+            <LoginButton />
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -48,11 +46,17 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = React.useState<boolean>(
     !!identity
   );
+  const { setIdentity } = useAccountStore(
+    useShallow((s) => ({
+      setIdentity: s.setIdentity,
+    }))
+  );
   const [transactions, setTransactions] = React.useState<any[]>([]); // initial data can be wired later
   const [isMobileNavOpen, setIsMobileNavOpen] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     setIsAuthenticated(!!identity);
+    setIdentity(identity || null);
   }, [identity]);
 
   const handleLoginSuccess = () => {
@@ -69,11 +73,7 @@ const App: React.FC = () => {
 
   // When not authenticated, show login screen
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <LoginRequired />
-      </div>
-    );
+    return <LoginRequired />;
   }
 
   return (

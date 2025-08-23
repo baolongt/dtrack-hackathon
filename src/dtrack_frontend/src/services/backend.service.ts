@@ -16,7 +16,6 @@ export class BackendService {
         if (!BackendService.instance) {
             const actor = createActor(canisterId, {
                 agentOptions: {
-                    fetch,
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
                     identity

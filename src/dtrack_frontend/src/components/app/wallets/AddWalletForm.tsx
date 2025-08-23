@@ -8,9 +8,14 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import useAccountStore from "@/stores/account.store";
+import { useShallow } from "zustand/shallow";
 
 export function AddWalletForm() {
-  const { addAccount } = useAccountStore();
+  const { addAccount } = useAccountStore(
+    useShallow((s) => ({
+      addAccount: s.addAccount,
+    }))
+  );
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
   const [mode, setMode] = React.useState<"account" | "principal">("principal");

@@ -15,7 +15,6 @@ export class IndexService {
         if (!IndexService.instance) {
             const actor = indexCreateActor(indexCanisterId, {
                 agentOptions: {
-                    fetch,
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
                     identity

@@ -15,7 +15,6 @@ export class LedgerService {
         if (!LedgerService.instance) {
             const actor = ledgerCreateActor(ledgerCanisterId, {
                 agentOptions: {
-                    fetch,
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
                     identity

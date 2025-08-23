@@ -1,5 +1,5 @@
 import * as React from "react";
-import { LabeledAccounts } from "@/components/app/LabeledAccounts";
+import { LabeledAccounts } from "../app/wallets/LabeledAccounts";
 
 export default function AccountsPage() {
   return <LabeledAccounts />;

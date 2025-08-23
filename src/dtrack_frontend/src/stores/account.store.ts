@@ -22,6 +22,11 @@ interface AccountStore {
     isLoadingBalances: boolean
     isLoadingIndex: boolean
     error: string | null
+
+    // setters
+    setIdentity(identity: Identity | null): void
+
+    // canister interactions
     fetchLabeledAccounts(): Promise<void>
     fetchBalances(): Promise<void>
     fetchIndexTransactions(): Promise<void>
@@ -44,6 +49,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
     isLoadingBalances: false,
     isLoadingIndex: false,
     error: null,
+
+    setIdentity(identity: Identity | null) {
+        set({ identity })
+        get().clear()
+    },
 
     async fetchLabeledAccounts() {
         let backendService = BackendService.getInstance(get().identity || undefined)
