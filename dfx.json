@@ -102,7 +102,7 @@
       "providers": ["https://icp0.io"]
     },
     "local": {
-      "bind": "localhost:8080",
+      "bind": "localhost:8000",
       "type": "ephemeral"
     }
   }
