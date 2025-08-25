@@ -1,5 +1,5 @@
 import { ActorSubclass, Identity } from "@dfinity/agent";
-import { _SERVICE, CustomTransaction, CreateCustomTransactionRequest, CreateLabeledAccountRequest, Account, SetTransactionLabelRequest } from "../../../declarations/dtrack_backend/dtrack_backend.did";
+import { _SERVICE, CustomTransaction, CreateCustomTransactionRequest, CreateLabeledAccountRequest, Account, SetTransactionLabelRequest, StoredAccount } from "../../../declarations/dtrack_backend/dtrack_backend.did";
 import { canisterId, createActor } from "../../../declarations/dtrack_backend";
 import { HOST, SHOULD_FETCH_ROOT_KEY } from "@/lib/env";
 
@@ -11,18 +11,22 @@ export class BackendService {
     }
 
     static instance: BackendService | null = null;
+    // keep track of the identity used to create the actor so we can recreate when it changes
+    static lastIdentity: Identity | undefined = undefined;
 
     static getInstance(identity?: Identity) {
-        if (!BackendService.instance) {
+        // recreate actor if identity changed (or instance not present)
+        if (!BackendService.instance || BackendService.lastIdentity !== identity) {
             const actor = createActor(canisterId, {
                 agentOptions: {
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
-                    identity
+                    identity,
                 },
             });
             if (!actor) throw new Error("BackendService not initialized: provide an actor when first calling getInstance");
             BackendService.instance = new BackendService(actor);
+            BackendService.lastIdentity = identity;
         }
         return BackendService.instance;
     }
@@ -80,8 +84,8 @@ export class BackendService {
         throw new Error(res.Err || "create_labeled_account failed");
     }
 
-    async deleteLabeledAccount(payload: Account) {
-        const res = await this.actor.delete_labeled_account(payload as Account);
+    async deleteLabeledAccount(payload: StoredAccount) {
+        const res = await this.actor.delete_labeled_account(payload);
         if ("Ok" in res) return res.Ok;
         throw new Error(res.Err || "delete_labeled_account failed");
     }

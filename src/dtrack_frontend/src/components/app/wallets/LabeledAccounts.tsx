@@ -19,6 +19,7 @@ export function LabeledAccounts() {
       return {
         accounts: s.labeledAccounts,
         removeAccount: s.removeAccount,
+        removeOffchainAccount: s.removeOffchainAccount,
       };
     })
   );
@@ -50,7 +51,9 @@ export function LabeledAccounts() {
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-mono text-muted-foreground">
-                      {truncateAccount(labeledAcc.account)}
+                      {"Icrc1" in labeledAcc.account
+                        ? truncateAccount((labeledAcc.account as any).Icrc1)
+                        : (labeledAcc.account as any).Offchain}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
@@ -67,9 +70,17 @@ export function LabeledAccounts() {
                     aria-label={`Copy ${labeledAcc.label} principal`}
                     className="flex items-center gap-2 text-foreground/90 hover:underline"
                     onClick={async () => {
-                      await navigator.clipboard.writeText(
-                        encodeIcrcAccount(toIcrcAccount(labeledAcc.account))
-                      );
+                      if ("Icrc1" in labeledAcc.account) {
+                        await navigator.clipboard.writeText(
+                          encodeIcrcAccount(
+                            toIcrcAccount((labeledAcc.account as any).Icrc1)
+                          )
+                        );
+                      } else if ("Offchain" in labeledAcc.account) {
+                        await navigator.clipboard.writeText(
+                          (labeledAcc.account as any).Offchain
+                        );
+                      }
                     }}
                   >
                     <Copy className="h-4 w-4" />
@@ -89,11 +100,22 @@ export function LabeledAccounts() {
                       );
                       if (!ok) return;
                       try {
-                        const removed = await useAccountStore
-                          .getState()
-                          .removeAccount(
-                            encodeIcrcAccount(toIcrcAccount(labeledAcc.account))
-                          );
+                        let removed = false;
+                        if ("Icrc1" in labeledAcc.account) {
+                          removed = await useAccountStore
+                            .getState()
+                            .removeAccount(
+                              encodeIcrcAccount(
+                                toIcrcAccount((labeledAcc.account as any).Icrc1)
+                              )
+                            );
+                        } else if ("Offchain" in labeledAcc.account) {
+                          removed = await useAccountStore
+                            .getState()
+                            .removeOffchainAccount(
+                              (labeledAcc.account as any).Offchain
+                            );
+                        }
                         if (!removed) {
                           // eslint-disable-next-line no-alert
                           window.alert("Failed to remove account");

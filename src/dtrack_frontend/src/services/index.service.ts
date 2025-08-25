@@ -10,18 +10,20 @@ export class IndexService {
     }
 
     static instance: IndexService | null = null;
+    static lastIdentity: Identity | undefined = undefined;
 
     static getInstantce(canister_id: string, identity?: Identity) {
-        if (!IndexService.instance) {
+        if (!IndexService.instance || IndexService.lastIdentity !== identity) {
             const actor = indexCreateActor(canister_id, {
                 agentOptions: {
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
-                    identity
+                    identity,
                 },
             });
             if (!actor) throw new Error("IndexService not initialized: provide an actor when first calling getInstance");
             IndexService.instance = new IndexService(actor);
+            IndexService.lastIdentity = identity;
         }
         return IndexService.instance;
     }

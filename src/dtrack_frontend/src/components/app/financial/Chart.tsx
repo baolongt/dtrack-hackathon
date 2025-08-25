@@ -54,7 +54,9 @@ export function TransactionDataChartLine() {
   const storeTxs = labeled?.flatMap((acc) => acc.transactions || []) ?? [];
 
   const chartData: ChartDataPoint[] = React.useMemo(() => {
-    return aggregateTransactionsByDay(storeTxs as any) as ChartDataPoint[];
+    // merge indexed txs + custom txs
+    const merged = [...(storeTxs as any[])];
+    return aggregateTransactionsByDay(merged) as ChartDataPoint[];
   }, [storeTxs]);
 
   const total = React.useMemo(

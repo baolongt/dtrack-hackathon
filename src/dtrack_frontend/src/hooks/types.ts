@@ -1,7 +1,22 @@
 import { Account } from "@dfinity/ledger-icp";
+import { StoredAccount } from "../../../declarations/dtrack_backend/dtrack_backend.did";
 
 export interface LabeledAccount {
-    account: Account;
+    account: StoredAccount;
+    label: string;
+    balance: number;
+    transactions: Transaction[];
+}
+
+export interface ICRC1Account {
+    account: { 'Icrc1': Account };
+    label: string;
+    balance: number;
+    transactions: Transaction[];
+}
+
+export interface OffchainAccount {
+    account: { 'Offchain': string };
     label: string;
     balance: number;
     transactions: Transaction[];

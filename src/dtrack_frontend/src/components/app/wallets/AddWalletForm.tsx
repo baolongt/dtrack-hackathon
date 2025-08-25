@@ -18,7 +18,9 @@ export function AddWalletForm() {
   );
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
-  const [mode, setMode] = React.useState<"account" | "principal">("principal");
+  const [mode, setMode] = React.useState<"account" | "principal" | "offchain">(
+    "principal"
+  );
   const [label, setLabel] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
 
@@ -26,8 +28,12 @@ export function AddWalletForm() {
     if (!idValue || !label) return;
     setIsAdding(true);
     try {
-      // pass the entered identifier as the owner string. The hook currently expects a principal text.
-      await addAccount(idValue, label);
+      // call the appropriate store method depending on input type
+      if (mode === "offchain") {
+        await useAccountStore.getState().addOffchainAccount(idValue, label);
+      } else {
+        await addAccount(idValue, label);
+      }
       setIdValue("");
       setLabel("");
     } catch (e) {
@@ -73,6 +79,16 @@ export function AddWalletForm() {
                   />
                   Account ID
                 </label>
+                <label className="inline-flex items-center text-sm">
+                  <input
+                    type="radio"
+                    name="idMode"
+                    checked={mode === "offchain"}
+                    onChange={() => setMode("offchain")}
+                    className="mr-2"
+                  />
+                  Offchain
+                </label>
               </div>
             </div>
 
@@ -88,6 +104,8 @@ export function AddWalletForm() {
                   placeholder={
                     mode === "principal"
                       ? "ur2tx-mciqf-h4p4b-qggnv-arpsc-s3wui-2blbn-aphly-wzoos-iqjik-hae"
+                      : mode === "offchain"
+                      ? "example-offchain-id"
                       : "706d348819f5b7316d497da5c9b3aae2816ffebe01943827f6e66839fcb64641"
                   }
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"

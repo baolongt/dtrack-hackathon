@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { LabeledAccount, Transaction } from '../hooks/types'
+import { ICRC1Account, LabeledAccount, Transaction } from '../hooks/types'
 import BackendService from '../services/backend.service'
 import LedgerService from '../services/ledger.service'
 import IndexService from '../services/index.service'
@@ -9,8 +9,25 @@ import { toNullable } from '@dfinity/utils'
 import { convertIndexTxToFrontend, getTokenPrice, toIcrcAccount } from '../lib/utils'
 import { Identity } from '@dfinity/agent'
 
+// helper: is the stored account an Icrc1 on-ledger account
+const isStoredIcrc1 = (acc: LabeledAccount): acc is ICRC1Account => {
+    return !!acc.account && typeof acc.account === 'object' && 'Icrc1' in (acc.account as any)
+}
+
+// helper: produce a stable key string for a StoredAccount (Icrc1 -> encoded account, Offchain -> value)
+const storedAccountKey = (acc: LabeledAccount): string => {
+    if (isStoredIcrc1(acc)) {
+        return encodeIcrcAccount(toIcrcAccount(acc.account.Icrc1))
+    }
+    if (acc.account && typeof acc.account === 'object' && 'Offchain' in (acc.account as any)) {
+        return (acc.account as any).Offchain
+    }
+    return ''
+}
+
 interface AccountStore {
     labeledAccounts: LabeledAccount[]
+    customTransactions: Transaction[]
     identity: Identity | null
     isLoadingLabeled: boolean
     isLoadingBalances: boolean
@@ -24,18 +41,22 @@ interface AccountStore {
     fetchLabeledAccounts(): Promise<void>
     fetchBalances(): Promise<void>
     fetchIndexTransactions(): Promise<void>
+    fetchCustomAccount(): Promise<void>
     fetchAll(): Promise<void>
     updateTransactionLabel(transactionId: string, label: string): Promise<boolean>
-    createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number }): Promise<{ ok: true; id: string } | never>
-    updateCustomTransaction(tx: { id: string; timestamp_ms: number; label: string; amount: number }): Promise<boolean>
+    createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number; account: string }): Promise<{ ok: true; id: string } | never>
+    updateCustomTransaction(tx: { id: string; timestamp_ms: number; label: string; amount: number; account: string }): Promise<boolean>
     deleteCustomTransaction(id: string): Promise<boolean>
     addAccount(account: string, label: string): Promise<boolean>
     removeAccount(account: string): Promise<boolean>
+    addOffchainAccount(account: string, label: string): Promise<boolean>
+    removeOffchainAccount(account: string): Promise<boolean>
     clear(): void
 }
 
 export const useAccountStore = create<AccountStore>((set, get) => ({
     labeledAccounts: [],
+    customTransactions: [],
     identity: null,
     isLoadingLabeled: false,
     isLoadingBalances: false,
@@ -46,6 +67,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         set({ identity })
         get().clear()
     },
+
+
+
 
     async fetchLabeledAccounts() {
         let backendService = BackendService.getInstance(get().identity || undefined)
@@ -79,19 +103,41 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         if (!labeled || labeled.length === 0) return
         set({ isLoadingBalances: true, error: null })
         try {
-            const decimals = await ledgerService.decimals()
-            const currentLabeled = get().labeledAccounts || []
-            const updated = await Promise.all(currentLabeled.map(async (acc: LabeledAccount) => {
+            const decimals = await ledgerService.decimals();
+            const currentLabeled = get().labeledAccounts || [];
+
+            // type guard: narrow LabeledAccount -> ICRC1Account when account has Icrc1
+            const isIcrc1Labeled = (acc: LabeledAccount): acc is ICRC1Account =>
+                !!acc.account && typeof acc.account === 'object' && 'Icrc1' in (acc.account as any)
+
+            const icrc1Accounts = currentLabeled.filter(isStoredIcrc1);
+
+            // fetch balances for icrc1 accounts and build a lookup map so we can preserve
+            // non-ICRC accounts in the store (was dropping them previously)
+            const balancesArr = await Promise.all(icrc1Accounts.map(async (acc) => {
+                // acc.account is { Icrc1: Account }
+                const inner = acc.account.Icrc1
+                const key = encodeIcrcAccount(toIcrcAccount(inner))
                 try {
-                    const bal = await ledgerService!.balanceOf(acc.account)
+                    const bal = await ledgerService!.balanceOf(inner);
                     const token = Number(bal) / Math.pow(10, decimals)
                     const usd = getTokenPrice(ledger_id, token)
-                    return { ...acc, balance: usd }
+                    return { key, balance: usd }
                 } catch {
-                    return { ...acc, balance: 0 }
+                    return { key, balance: 0 }
                 }
             }))
-            set({ labeledAccounts: updated })
+
+            const balanceMap: Record<string, number> = {}
+            balancesArr.forEach((b) => { balanceMap[b.key] = b.balance })
+
+            const updatedLabeled = currentLabeled.map((acc) => {
+                const key = storedAccountKey(acc)
+                if (key in balanceMap) return { ...acc, balance: balanceMap[key] }
+                return acc
+            })
+
+            set({ labeledAccounts: updatedLabeled })
         } catch (e) {
             set({ error: e instanceof Error ? e.message : String(e) })
         } finally {
@@ -107,15 +153,23 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             index_id,
             get().identity || undefined
         )
+        const backendService = BackendService.getInstance(get().identity || undefined)
         const accounts = get().labeledAccounts
         if (!accounts || accounts.length === 0) return
         set({ isLoadingIndex: true, error: null })
         try {
             // Build per-account tasks, await them, then assemble txMap from results
             const tasks = accounts.map(async (acc: LabeledAccount) => {
-                const account_str = encodeIcrcAccount(toIcrcAccount(acc.account))
+                // Only Icrc1 accounts can be queried from the index/ledger
+                if (!isStoredIcrc1(acc)) {
+                    const offKey = typeof acc.account === 'object' && 'Offchain' in acc.account ? (acc.account as any).Offchain : ''
+                    return { key: offKey, txs: [] }
+                }
+
+                const inner = acc.account.Icrc1
+                const account_str = encodeIcrcAccount(toIcrcAccount(inner))
                 try {
-                    const res = await indexService!.getAccountTransactions(acc.account, 100)
+                    const res = await indexService!.getAccountTransactions(inner, 100)
                     const transactions = res.transactions ?? res
                     const temp: Transaction[] = transactions.map((indexTx) => {
                         const res = convertIndexTxToFrontend(
@@ -149,13 +203,12 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 }
             }
 
-            console.log("fetchIndexTransactions - txMap:", txMap);
-
             // map txMap onto current labeled accounts so consumers re-render
             const currentLabeled = get().labeledAccounts || []
             const updatedLabeled = currentLabeled.map((acc) => {
-                const key = encodeIcrcAccount(toIcrcAccount(acc.account))
-                return { ...acc, transactions: txMap[key] ?? [] }
+                const key = storedAccountKey(acc)
+                const indexTxs = txMap[key] ?? []
+                return { ...acc, transactions: indexTxs }
             })
             set({ labeledAccounts: updatedLabeled })
         } catch (e) {
@@ -169,7 +222,8 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         await get().fetchLabeledAccounts()
         await Promise.allSettled([
             get().fetchBalances(),
-            get().fetchIndexTransactions()
+            get().fetchIndexTransactions(),
+            get().fetchCustomAccount(),
         ])
     },
 
@@ -188,19 +242,33 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number }) {
+    async createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number; account: string }) {
         const backend = BackendService.getInstance(get().identity || undefined)
         try {
             const amountCents = BigInt(Math.round(tx.amount * 100))
             const timestampNat = BigInt(Math.round(tx.timestamp_ms))
+            // build StoredAccount from provided string: try decode as Icrc1, fallback to Offchain
+            let storedAccount: any
+            try {
+                const decoded = decodeIcrcAccount(tx.account)
+                const accountForCall: Account = {
+                    owner: decoded.owner,
+                    subaccount: toNullable(decoded.subaccount),
+                }
+                storedAccount = { Icrc1: accountForCall } as any
+            } catch {
+                storedAccount = { Offchain: tx.account } as any
+            }
+
             const result = await backend.createCustomTransaction({
                 id: '',
                 timestamp_ms: timestampNat,
                 label: tx.label,
                 amount: amountCents,
+                account: storedAccount,
             })
             if (result) {
-                await get().fetchIndexTransactions()
+                await get().fetchCustomAccount()
                 return { ok: true, id: result }
             }
             throw new Error('create_custom_transaction failed')
@@ -209,19 +277,33 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async updateCustomTransaction(tx: { id: string; timestamp_ms: number; label: string; amount: number }) {
+    async updateCustomTransaction(tx: { id: string; timestamp_ms: number; label: string; amount: number; account: string }) {
         const backend = BackendService.getInstance(get().identity || undefined)
         try {
             const amountCents = BigInt(Math.round(tx.amount * 100))
             const timestampNat = BigInt(Math.round(tx.timestamp_ms))
+            // build StoredAccount for update as well
+            let storedAccount: any
+            try {
+                const decoded = decodeIcrcAccount(tx.account)
+                const accountForCall: Account = {
+                    owner: decoded.owner,
+                    subaccount: toNullable(decoded.subaccount),
+                }
+                storedAccount = { Icrc1: accountForCall } as any
+            } catch {
+                storedAccount = { Offchain: tx.account } as any
+            }
+
             const result = await backend.updateCustomTransaction({
                 id: tx.id,
                 timestamp_ms: timestampNat,
                 label: tx.label,
                 amount: amountCents,
+                account: storedAccount,
             })
             if (result) {
-                await get().fetchIndexTransactions()
+                await get().fetchCustomAccount()
                 return true
             }
             throw new Error('update_custom_transaction failed')
@@ -235,12 +317,48 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         try {
             const deleted = await backend.deleteCustomTransaction(id)
             if (deleted) {
-                await get().fetchIndexTransactions()
+                await get().fetchCustomAccount()
                 return true
             }
             throw new Error('delete_custom_transaction failed')
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : String(e))
+        }
+    },
+
+    async fetchCustomAccount() {
+        const backendService = BackendService.getInstance(get().identity || undefined)
+        try {
+            const custom = await backendService.getCustomTransactions();
+            const customTxs: Transaction[] = (custom || []).map((c: any) => {
+                // map StoredAccount -> display string
+                let accountStr = 'custom'
+                if (c.account) {
+                    if (typeof c.account === 'object' && 'Offchain' in c.account) {
+                        accountStr = c.account.Offchain
+                    } else if (typeof c.account === 'object' && 'Icrc1' in c.account) {
+                        const inner = c.account.Icrc1
+                        try {
+                            accountStr = encodeIcrcAccount(toIcrcAccount(inner))
+                        } catch {
+                            accountStr = 'icrc'
+                        }
+                    }
+                }
+
+                return {
+                    id: String(c.id),
+                    amount: Number(c.amount) / 100,
+                    timestamp_ms: Number(c.timestamp_ms) || Date.now(),
+                    account: accountStr,
+                    label: c.label || 'custom',
+                    isCustom: true,
+                }
+            }) as Transaction[]
+            set({ customTransactions: customTxs })
+        } catch (e) {
+            console.warn('fetchCustomAccount: failed to fetch custom transactions', e)
+            set({ customTransactions: [] })
         }
     },
 
@@ -252,7 +370,20 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 subaccount: toNullable(decoded.subaccount),
             }
             const backend = BackendService.getInstance(get().identity || undefined)
-            await backend.createLabeledAccount({ label, account: accountForCall })
+            const storedAccount = { Icrc1: accountForCall } as any
+            await backend.createLabeledAccount({ label, account: storedAccount })
+            await get().fetchLabeledAccounts()
+            return true
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : String(e))
+        }
+    },
+
+    async addOffchainAccount(account: string, label: string) {
+        try {
+            const backend = BackendService.getInstance(get().identity || undefined)
+            const storedAccount = { Offchain: account } as any
+            await backend.createLabeledAccount({ label, account: storedAccount })
             await get().fetchLabeledAccounts()
             return true
         } catch (e) {
@@ -268,7 +399,20 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 subaccount: toNullable(decoded.subaccount),
             }
             const backend = BackendService.getInstance(get().identity || undefined)
-            await backend.deleteLabeledAccount(accountForCall)
+            const storedAccount = { Icrc1: accountForCall } as any
+            await backend.deleteLabeledAccount(storedAccount)
+            await get().fetchLabeledAccounts()
+            return true
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : String(e))
+        }
+    },
+
+    async removeOffchainAccount(account: string) {
+        try {
+            const backend = BackendService.getInstance(get().identity || undefined)
+            const storedAccount = { Offchain: account } as any
+            await backend.deleteLabeledAccount(storedAccount)
             await get().fetchLabeledAccounts()
             return true
         } catch (e) {

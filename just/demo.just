@@ -29,17 +29,18 @@ demo iterations="" interval="":
       echo "airdropping to $principal"
       just dfx_local_airdrop $principal
 
-      # choose randomly whether demo_i sends to test1 or test1 sends to demo_i
       r=$((RANDOM % 2))
-      if [ "$r" -eq 0 ]; then
-        echo "transfer: $idname -> test1"
-        dfx identity use $idname
-        dfx canister call icp_ledger_canister icrc1_transfer "(record { to = record { owner = principal \"$principal_test1\"; subaccount = null; }; memo = null; created_at_time = null; from_subaccount = null; amount = 1000000; fee = null })"
-      else
-        echo "transfer: test1 -> $idname"
-        dfx identity use test1
-        dfx canister call icp_ledger_canister icrc1_transfer "(record { to = record { owner = principal \"$principal\"; subaccount = null; }; memo = null; created_at_time = null; from_subaccount = null; amount = 1000000; fee = null })"
-      fi
+
+      amount=$(awk 'BEGIN { srand(); min=1; max=5; r = min + rand()*(max-min); printf "%d", int(r * 1e8) }')
+          if [ "$r" -eq 0 ]; then
+            echo "transfer: $idname -> test1"
+            dfx identity use $idname
+      dfx canister call icp_ledger_canister icrc1_transfer "(record { to = record { owner = principal \"$principal_test1\"; subaccount = null; }; memo = null; created_at_time = null; from_subaccount = null; amount = $amount; fee = null })"
+          else
+            echo "transfer: test1 -> $idname"
+            dfx identity use test1
+      dfx canister call icp_ledger_canister icrc1_transfer "(record { to = record { owner = principal \"$principal\"; subaccount = null; }; memo = null; created_at_time = null; from_subaccount = null; amount = $amount; fee = null })"
+          fi
 
       echo "iteration $i complete"
       sleep $interval

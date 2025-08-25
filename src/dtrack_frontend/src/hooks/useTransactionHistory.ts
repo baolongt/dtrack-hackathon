@@ -6,23 +6,25 @@ import { useShallow } from "zustand/shallow";
 export function useTransactionHistory() {
     const {
         labeledAccounts,
-        isLoadingIndex,
+        customTransactions,
         updateTransactionLabel,
         updateCustomTransaction,
         deleteCustomTransaction,
         createCustomTransaction,
         fetchIndexTransactions,
         fetchAll,
-    } = useAccountStore(useShallow((s) => ({
-        labeledAccounts: s.labeledAccounts,
-        isLoadingIndex: s.isLoadingIndex,
-        updateTransactionLabel: s.updateTransactionLabel,
-        updateCustomTransaction: s.updateCustomTransaction,
-        deleteCustomTransaction: s.deleteCustomTransaction,
-        createCustomTransaction: s.createCustomTransaction,
-        fetchIndexTransactions: s.fetchIndexTransactions,
-        fetchAll: s.fetchAll,
-    })));
+    } = useAccountStore(
+        useShallow((s) => ({
+            labeledAccounts: s.labeledAccounts,
+            customTransactions: s.customTransactions,
+            updateTransactionLabel: s.updateTransactionLabel,
+            updateCustomTransaction: s.updateCustomTransaction,
+            deleteCustomTransaction: s.deleteCustomTransaction,
+            createCustomTransaction: s.createCustomTransaction,
+            fetchIndexTransactions: s.fetchIndexTransactions,
+            fetchAll: s.fetchAll,
+        }))
+    );
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [editingTx, setEditingTx] = useState<{
@@ -41,21 +43,28 @@ export function useTransactionHistory() {
         date: string;
         label: string;
         amount: string;
+        account?: string;
     }>({
         date: "",
         label: "",
         amount: "",
+        account: "custom",
     });
 
     useEffect(() => {
-        // Flatten transactions from all labeled accounts
-        const allTxs: Transaction[] = labeledAccounts
-            .flatMap((account) => account.transactions || [])
-            .sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
-        setTransactions(allTxs);
-        console.log("useTransactionHistory - allTxs:", allTxs);
-    }, [isLoadingIndex]);
+        // include index transactions (per-account) and global custom transactions
+        const indexTxs: Transaction[] = labeledAccounts.flatMap((a) => a.transactions || []);
+        const customTxs: Transaction[] = customTransactions || [];
 
+        // merge and dedupe by id (prefer first occurrence)
+        const byId = new Map<string, Transaction>();
+        for (const t of [...indexTxs, ...customTxs]) {
+            if (!t || !t.id) continue;
+            if (!byId.has(String(t.id))) byId.set(String(t.id), t);
+        }
+        const allTxs = Array.from(byId.values()).sort((a, b) => (b.timestamp_ms || 0) - (a.timestamp_ms || 0));
+        setTransactions(allTxs);
+    }, [labeledAccounts, customTransactions]);
 
     const currency = useMemo(
         () =>
@@ -81,6 +90,7 @@ export function useTransactionHistory() {
                     timestamp_ms: timestampMs,
                     label: editingTx.label,
                     amount: Number(tx.amount),
+                    account: tx.account,
                 });
             } else {
                 await updateTransactionLabel(editingTx.id, editingTx.label);
@@ -94,14 +104,12 @@ export function useTransactionHistory() {
         }
     };
 
-    const handleCancel = () => {
-        setEditingTx(null);
-    };
+    const handleCancel = () => setEditingTx(null);
 
     const handleDeleteCustom = async (id: string) => {
         if (!confirm("Delete this custom transaction?")) return;
+        setIsSaving(true);
         try {
-            setIsSaving(true);
             await deleteCustomTransaction(id);
             await fetchAll();
         } catch (e) {
@@ -125,14 +133,15 @@ export function useTransactionHistory() {
                 timestamp_ms: timestampMs,
                 label: newTx.label,
                 amount: amountNum,
+                account: newTx.account || 'custom',
             });
             setNewTx({ date: "", label: "", amount: "" });
             setShowCreateForm(false);
+            await fetchAll();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed to create");
         } finally {
             setIsCreating(false);
-            await fetchAll();
         }
     };
 
@@ -176,11 +185,7 @@ export function useTransactionHistory() {
             const filename = `transactions-${ts}.xlsx`;
             XLSX.writeFile(wb, filename);
         } catch (err) {
-            alert(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to generate Excel file. Install 'xlsx' package."
-            );
+            alert(err instanceof Error ? err.message : "Failed to generate Excel file. Install 'xlsx' package.");
         } finally {
             setIsDownloading(false);
         }
@@ -214,9 +219,7 @@ export function useTransactionHistory() {
                     tx.id,
                     tx.timestamp_ms ? new Date(tx.timestamp_ms).toLocaleString() : "",
                     tx.timestamp_ms ?? "",
-                    tx.amount < 0
-                        ? `-${currency.format(Math.abs(amountNum))}`
-                        : currency.format(amountNum),
+                    tx.amount < 0 ? `-${currency.format(Math.abs(amountNum))}` : currency.format(amountNum),
                     tx.account,
                     tx.label,
                     tx.isCustom ? "Yes" : "No",
@@ -241,17 +244,12 @@ export function useTransactionHistory() {
                     5: { cellWidth: 170 },
                     6: { cellWidth: 40 },
                 },
-                didDrawCell: (_data: any) => { },
             });
 
             const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
             doc.save(`transactions-${ts}.pdf`);
         } catch (err) {
-            alert(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to generate PDF. Install 'jspdf' and 'jspdf-autotable' packages."
-            );
+            alert(err instanceof Error ? err.message : "Failed to generate PDF. Install 'jspdf' and 'jspdf-autotable' packages.");
         } finally {
             setIsDownloadingPdf(false);
         }

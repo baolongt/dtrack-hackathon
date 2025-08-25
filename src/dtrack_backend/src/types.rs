@@ -76,6 +76,7 @@ pub struct CustomTransaction {
     pub timestamp_ms: u64,
     pub label: String,
     pub amount: u64,
+    pub account: StoredAccount,
 }
 
 #[derive(CandidType, Deserialize)]

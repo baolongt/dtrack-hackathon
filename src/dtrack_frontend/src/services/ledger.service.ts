@@ -10,18 +10,20 @@ export class LedgerService {
     }
 
     static instance: LedgerService | null = null;
+    static lastIdentity: Identity | undefined = undefined;
 
     static getInstantce(ledger_id: string, identity?: Identity) {
-        if (!LedgerService.instance) {
+        if (!LedgerService.instance || LedgerService.lastIdentity !== identity) {
             const actor = ledgerCreateActor(ledger_id, {
                 agentOptions: {
                     host: HOST,
                     shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
-                    identity
+                    identity,
                 },
             });
             if (!actor) throw new Error("LedgerService not initialized: provide an actor when first calling getInstance");
             LedgerService.instance = new LedgerService(actor);
+            LedgerService.lastIdentity = identity;
         }
         return LedgerService.instance;
     }
