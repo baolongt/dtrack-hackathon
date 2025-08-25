@@ -147,3 +147,9 @@ pub fn add_label(label: String) -> Result<(), String> {
 
     crate::repository::add_label(&msg_caller(), label.trim().to_string())
 }
+
+#[ic_cdk::update]
+pub fn get_labels() -> Vec<String> {
+    let caller = msg_caller();
+    crate::repository::get_labels(&caller)
+}

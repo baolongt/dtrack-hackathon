@@ -246,3 +246,7 @@ pub fn add_label(principal: &Principal, label: String) -> Result<(), String> {
         }
     })
 }
+
+pub fn get_labels(principal: &Principal) -> Vec<String> {
+    USER_LABEL.with_borrow(|ul| ul.get(principal).map_or_else(|| vec![], |entry| entry.0))
+}
