@@ -16,6 +16,15 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   FileText,
   FileSpreadsheet,
@@ -25,7 +34,10 @@ import {
   Plus,
   RefreshCw,
 } from "lucide-react";
+import AddTransactionDialog from "./AddTransactionDialog";
 import useTransactionHistory from "@/hooks/useTransactionHistory";
+
+const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Other"];
 
 export function TransactionHistory() {
   const {
@@ -100,80 +112,17 @@ export function TransactionHistory() {
                 Download Excel
               </Button>
 
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setShowCreateForm((s) => !s)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Custom
-              </Button>
+              <AddTransactionDialog
+                newTx={newTx}
+                setNewTx={setNewTx}
+                isCreating={isCreating}
+                onCreate={handleCreate}
+              />
             </div>
           </div>
         </CardHeader>
 
-        {showCreateForm && (
-          <CardContent>
-            <form onSubmit={handleCreate} className="flex gap-2 items-end">
-              <div className="flex flex-col">
-                <label className="text-sm text-muted-foreground">
-                  Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newTx.date}
-                  onChange={(e) => setNewTx({ ...newTx, date: e.target.value })}
-                  className="border rounded p-1"
-                  step="1"
-                  required
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className="text-sm text-muted-foreground">
-                  Amount (USD)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={newTx.amount}
-                  onChange={(e) =>
-                    setNewTx({ ...newTx, amount: e.target.value })
-                  }
-                  className="border rounded p-1"
-                  required
-                />
-              </div>
-              <div className="flex-1 flex flex-col">
-                <label className="text-sm text-muted-foreground">Label</label>
-                <input
-                  value={newTx.label}
-                  onChange={(e) =>
-                    setNewTx({ ...newTx, label: e.target.value })
-                  }
-                  className="border rounded p-1 w-full"
-                  required
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" size="sm" disabled={isCreating}>
-                  {isCreating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : null}
-                  Create
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowCreateForm(false)}
-                  disabled={isCreating}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        )}
+        {/* Creation moved to AddTransactionDialog */}
 
         <CardContent>
           <Table className="table-fixed">
@@ -215,16 +164,23 @@ export function TransactionHistory() {
                   <TableCell className="w-[220px]">
                     {editingTx && editingTx.id === transaction.id ? (
                       <div className="flex gap-1 items-center">
-                        <input
+                        <Select
                           value={editingTx.label}
-                          onChange={(e) =>
-                            setEditingTx({
-                              ...editingTx,
-                              label: e.target.value,
-                            })
+                          onValueChange={(v) =>
+                            setEditingTx({ ...editingTx, label: v })
                           }
-                          className="border rounded p-1 w-full box-border"
-                        />
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TX_LABELS.map((l) => (
+                              <SelectItem value={l} key={l}>
+                                {l}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button
                           variant="outline"
                           size="sm"
