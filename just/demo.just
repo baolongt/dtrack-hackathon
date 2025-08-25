@@ -10,7 +10,7 @@ demo iterations="" interval="":
 
     # Create identity A (test1) outside the loop for tracking and testing
     dfx identity use test1
-    principal_test1=$(dfx identity get-principal)
+    principal_test1=$(dfx identity get-principal --identity test1)
     principal_test2=$(dfx identity get-principal --identity test2)
     principal_test3=$(dfx identity get-principal --identity test3)
     echo "test1 principal: $principal_test1"

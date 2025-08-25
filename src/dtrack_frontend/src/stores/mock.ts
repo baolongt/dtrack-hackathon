@@ -1,4 +1,4 @@
-import { INDEX_LABELS, isSendLabel, TX_LABELS } from '@/lib/const'
+import { CUSTOM_TX_LABELS, INDEX_LABELS, isSendLabel, TX_LABELS } from '@/lib/const'
 import { Transaction } from '../hooks/types'
 
 // small deterministic hash -> seed function (xmur3)
@@ -81,7 +81,7 @@ export function mockCustomTransactions(seed = 'default-custom', count = 5): Tran
     const now = Date.now()
     const txs: Transaction[] = []
     for (let i = 0; i < count; i++) {
-        const label = (rng() > 0.5 ? 'custom' : TX_LABELS[Math.floor(rng() * TX_LABELS.length)])
+        const label = (rng() > 0.5 ? 'custom' : CUSTOM_TX_LABELS[Math.floor(rng() * CUSTOM_TX_LABELS.length)])
         let amount = randAmount(rng, 1, 300)
         if (isSendLabel(label)) amount = -amount
         const daysBack = Math.floor(rng() * 90)

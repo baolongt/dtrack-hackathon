@@ -18,6 +18,12 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Transaction } from "../../../hooks/types";
 import {
+  SENT_LABEL,
+  RECEIVED_LABEL,
+  TX_LABELS,
+  CUSTOM_TX_LABELS,
+} from "@/lib/const";
+import {
   DownloadIcon,
   ArrowUpIcon,
   ArrowDownIcon,
@@ -97,29 +103,43 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
         new Date(t.timestamp_ms) <= prevMonthEnd
     );
 
+    const normalize = (s: string) =>
+      s
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+    const txLabelSet = new Set(TX_LABELS.map((s) => normalize(s)));
+    const customLabelSet = new Set(CUSTOM_TX_LABELS.map((s) => normalize(s)));
+    const sentNorm = normalize(SENT_LABEL);
+
+    const isOffChainRevenue = (t: Transaction) => {
+      if (t.isCustom) return true;
+      const norm = normalize(t.label || "");
+      if (customLabelSet.has(norm)) return true;
+      // also treat explicit "grant" style label from TX_LABELS
+      if (txLabelSet.has(norm) && norm.includes("grant")) return true;
+      return false;
+    };
+
+    const isExpenseLabel = (t: Transaction) => {
+      const norm = normalize(t.label || "");
+      // consider canonical TX_LABELS and explicit sent label as expenses
+      return txLabelSet.has(norm) || norm === sentNorm;
+    };
+
     const calculateMetrics = (txs: Transaction[]) => {
-      // classify by isCustom flag: index-derived txs (no isCustom) are on-chain; custom txs are off-chain
+      // classify by isCustom flag: index-derived txs (no isCustom) are on-chain; custom txs or labeled ones are off-chain
       const onChainRevenue = txs
         .filter((t) => !t.isCustom)
         .reduce((sum, t) => sum + t.amount, 0);
       const offChainRevenue = txs
-        .filter(
-          (t) =>
-            t.isCustom ||
-            (t.label || "").toString().toLowerCase().includes("off-chain") ||
-            (t.label || "").toString().toLowerCase().includes("grant")
-        )
+        .filter((t) => isOffChainRevenue(t))
         .reduce((sum, t) => sum + t.amount, 0);
       const totalRevenue = onChainRevenue + offChainRevenue;
       const totalExpenses = txs
-        .filter((t) => {
-          const lbl = (t.label || "").toString().toLowerCase();
-          return (
-            lbl.includes("payment") ||
-            lbl.includes("expense") ||
-            lbl.includes("expenses")
-          );
-        })
+        .filter((t) => isExpenseLabel(t))
         .reduce((sum, t) => sum + t.amount, 0);
       const netProfit = totalRevenue - totalExpenses;
       return {

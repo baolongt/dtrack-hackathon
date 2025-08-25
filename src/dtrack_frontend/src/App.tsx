@@ -4,16 +4,7 @@ import { useInternetIdentity } from "ic-use-internet-identity";
 import DashboardPage from "@/components/pages/Dashboard";
 import HistoryPage from "@/components/pages/History";
 import AccountsPage from "@/components/pages/Accounts";
-import AnalyticsPage from "@/components/pages/Analytics";
-import { LoginButton } from "./components/auth/LoginButton";
 import LoginPage from "./components/auth/LoginPage";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import Header from "./components/app/layout/Header";
 import HomeSidebar from "./components/app/layout/HomeSidebar";
 import useAccountStore from "./stores/account.store";
@@ -32,7 +23,6 @@ const App: React.FC = () => {
       fetchAll: s.fetchAll,
     }))
   );
-  const [transactions, setTransactions] = React.useState<any[]>([]); // initial data can be wired later
   const [isMobileNavOpen, setIsMobileNavOpen] = React.useState<boolean>(false);
 
   React.useEffect(() => {
@@ -49,16 +39,21 @@ const App: React.FC = () => {
   }, [identity]);
 
   const handleLogout = () => {
-    if (window.confirm("Are you sure you want to log out?")) {
-      clear();
-      setIdentity(null);
-    }
+    console.log("Logging out");
+    clear();
+    setIdentity(null);
   };
 
   // When not authenticated, show login screen
-  if (!identity) {
+  if (!identity || status === "idle") {
     return <LoginPage />;
   }
+
+  console.log(
+    "Authenticated with identity",
+    identity?.getPrincipal().toText(),
+    status
+  );
 
   return (
     <Router>

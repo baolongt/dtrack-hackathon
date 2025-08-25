@@ -24,6 +24,8 @@ export const INDEX_LABELS = [SENT_LABEL, RECEIVED_LABEL];
 
 export const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Investment", "Crowdfund", "Onchain-grant"];
 
+export const CUSTOM_TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Investment", "Crowdfund"];
+
 export const isSendLabel = (label: string) => {
     const lower = label.toLowerCase();
     const arr = ["On-chain Payment", "Refund", "Subscription", "Invoice Payment"];
