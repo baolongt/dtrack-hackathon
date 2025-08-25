@@ -89,6 +89,16 @@ export class BackendService {
         if ("Ok" in res) return res.Ok;
         throw new Error(res.Err || "delete_labeled_account failed");
     }
+
+    async addLabel(label: string) {
+        const res = await this.actor.add_label(label);
+        if ("Ok" in res) return res.Ok;
+        throw new Error(res.Err || "add_label failed");
+    }
+
+    async getLabels() {
+        return await this.actor.get_labels()
+    }
 }
 
 export default BackendService;

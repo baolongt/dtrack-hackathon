@@ -9,13 +9,46 @@ import {
 import { Button } from "@/components/ui/button";
 import useAccountStore from "@/stores/account.store";
 import { useShallow } from "zustand/shallow";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
+import AddLabelDialog from "./AddLabelDialog";
+import BackendService from "@/services/backend.service";
 
 export function AddWalletForm() {
-  const { addAccount } = useAccountStore(
+  const { addAccount, labeledAccounts } = useAccountStore(
     useShallow((s) => ({
       addAccount: s.addAccount,
+      labeledAccounts: s.labeledAccounts,
     }))
   );
+  // labels loaded from backend
+  const [labels, setLabels] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const svc = BackendService.getInstance();
+        const res = await svc.getLabels();
+        if (!mounted) return;
+        // normalize response to string[]
+        let out: string[] = [];
+        if (Array.isArray(res)) out = res;
+        else if (res && typeof res === "object" && (res as any).Ok) out = (res as any).Ok;
+        setLabels(out || []);
+      } catch (e) {
+        console.warn("Failed to load labels", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
   const [mode, setMode] = React.useState<"account" | "principal" | "offchain">(
@@ -115,13 +148,33 @@ export function AddWalletForm() {
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   Label
                 </label>
-                <input
-                  type="text"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  placeholder="Enter a label..."
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select value={label} onValueChange={(v) => setLabel(v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a label" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {labels.length === 0 ? (
+                          <SelectItem value="__none" key="__none">
+                            No labels
+                          </SelectItem>
+                        ) : (
+                          labels.map((l) => (
+                            <SelectItem value={l} key={l}>
+                              {l}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <AddLabelDialog onAdded={(newLabel) => {
+                    if (!newLabel) return;
+                    setLabels((p) => Array.from(new Set([...p, newLabel])));
+                    setLabel(newLabel);
+                  }} />
+                </div>
               </div>
             </div>
           </div>
