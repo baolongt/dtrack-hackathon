@@ -43,6 +43,7 @@ interface AccountStore {
     fetchBalances(): Promise<void>
     fetchIndexTransactions(): Promise<void>
     fetchCustomAccount(): Promise<void>
+    fetchTransactionLabels(): Promise<void>
     fetchAll(): Promise<void>
     updateTransactionLabel(transactionId: string, label: string): Promise<boolean>
     createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number; account: string }): Promise<{ ok: true; id: string } | never>
@@ -92,6 +93,41 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
+    async fetchTransactionLabels() {
+        let backendService = BackendService.getInstance(get().identity || undefined)
+        try {
+            const res = await backendService.getTransactionLabels();
+            // res is an array of { id: bigint, label: string }
+            // build a string-keyed map so we can match against frontend tx.id (which is a string)
+            const labelMap: Record<string, string> = {} as Record<string, string>
+            (res || []).forEach((rec: any) => {
+                try {
+                    const idStr = String(rec.id)
+                    labelMap[idStr] = rec.label
+                } catch {
+                    // ignore malformed entries
+                }
+            })
+
+            // map labels onto existing labeledAccounts' transactions
+            const currentLabeled = get().labeledAccounts || []
+            const updatedLabeled = currentLabeled.map((acc) => {
+                const updatedTxs = (acc.transactions || []).map((tx) => {
+                    const mapped = labelMap[tx.id]
+                    if (mapped && mapped !== tx.label) {
+                        return { ...tx, label: mapped }
+                    }
+                    return tx
+                })
+                return { ...acc, transactions: updatedTxs }
+            })
+
+            set({ labeledAccounts: updatedLabeled })
+            console.log("Fetched transaction labels and applied mapping:", labelMap)
+        } catch (e) {
+            console.warn("fetchTransactionLabels: failed to fetch", e);
+        }
+    },
     async fetchBalances(
         ledger_id = process.env.CANISTER_ID_ICP_LEDGER_CANISTER || ""
     ) {
@@ -230,6 +266,8 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             get().fetchIndexTransactions(),
             get().fetchCustomAccount(),
         ])
+        // fetch and apply any user-set transaction labels after transactions are loaded
+        await get().fetchTransactionLabels()
     },
 
     async updateTransactionLabel(transactionId: string, label: string) {
@@ -241,7 +279,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 await get().fetchIndexTransactions()
                 return true
             }
-            throw new Error('set_transaction_label failed')
+            return false
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : String(e))
         }

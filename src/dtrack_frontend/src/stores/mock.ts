@@ -1,3 +1,4 @@
+import { INDEX_LABELS, isSendLabel, TX_LABELS } from '@/lib/const'
 import { Transaction } from '../hooks/types'
 
 // small deterministic hash -> seed function (xmur3)
@@ -36,7 +37,6 @@ function randAmount(rng: () => number, min = 1, max = 300) {
     return Math.round(cents) / 100
 }
 
-const LABELS = ['payment', 'salary', 'refund', 'transfer', 'purchase', 'fee', 'reimbursement']
 
 /**
  * Generate deterministic mock index transactions for an account.
@@ -50,8 +50,9 @@ export function mockIndexTransactions(account: string, ledgerId = '', count = 10
     const start = new Date('2025-01-01T00:00:00Z').getTime()
     const txs: Transaction[] = []
     for (let i = 0; i < count; i++) {
-        const amount = randAmount(rng, 1, 300)
-        const label = LABELS[Math.floor(rng() * LABELS.length)]
+        let amount = randAmount(rng, 1, 300)
+        const label = INDEX_LABELS[Math.floor(rng() * INDEX_LABELS.length)]
+        if (isSendLabel(label)) amount = -amount
         // pick uniformly between 2025-01-01 and now
         const timestamp_ms = Math.floor(rng() * (now - start + 1)) + start
         const id = `${Math.abs(Math.floor(rng() * 1e12))}`
@@ -80,8 +81,9 @@ export function mockCustomTransactions(seed = 'default-custom', count = 5): Tran
     const now = Date.now()
     const txs: Transaction[] = []
     for (let i = 0; i < count; i++) {
-        const amount = randAmount(rng, 1, 300)
-        const label = (rng() > 0.5 ? 'custom' : LABELS[Math.floor(rng() * LABELS.length)])
+        const label = (rng() > 0.5 ? 'custom' : TX_LABELS[Math.floor(rng() * TX_LABELS.length)])
+        let amount = randAmount(rng, 1, 300)
+        if (isSendLabel(label)) amount = -amount
         const daysBack = Math.floor(rng() * 90)
         const jitter = Math.floor(rng() * 86400000)
         const timestamp_ms = now - daysBack * 24 * 60 * 60 * 1000 - jitter

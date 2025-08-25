@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -31,13 +30,12 @@ import {
   Edit,
   Loader2,
   Trash2,
-  Plus,
   RefreshCw,
 } from "lucide-react";
 import AddTransactionDialog from "./AddTransactionDialog";
 import useTransactionHistory from "@/hooks/useTransactionHistory";
-
-const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Other"];
+import { useMemo, useState } from "react";
+import { TX_LABELS } from "@/lib/const";
 
 export function TransactionHistory() {
   const {
@@ -61,6 +59,37 @@ export function TransactionHistory() {
     handleDownloadPDF,
     fetchIndexTransactions,
   } = useTransactionHistory();
+
+  // Filters
+  const [fromDate, setFromDate] = useState<string | undefined>(undefined);
+  const [toDate, setToDate] = useState<string | undefined>(undefined);
+  const [txType, setTxType] = useState<string>("All");
+
+  const filteredTransactions = useMemo(() => {
+    const fromMs = fromDate ? new Date(fromDate).getTime() : undefined;
+    const toMs = toDate
+      ? (() => {
+          const d = new Date(toDate);
+          d.setHours(23, 59, 59, 999);
+          return d.getTime();
+        })()
+      : undefined;
+
+    return transactions.filter((t) => {
+      // filter by from/to
+      if (fromMs !== undefined) {
+        if (!t.timestamp_ms || t.timestamp_ms < fromMs) return false;
+      }
+      if (toMs !== undefined) {
+        if (!t.timestamp_ms || t.timestamp_ms > toMs) return false;
+      }
+      // filter by tx type/label
+      if (txType && txType !== "All") {
+        if ((t.label || "") !== txType) return false;
+      }
+      return true;
+    });
+  }, [transactions, fromDate, toDate, txType]);
 
   return (
     <div className="w-full space-y-6">
@@ -125,6 +154,42 @@ export function TransactionHistory() {
         {/* Creation moved to AddTransactionDialog */}
 
         <CardContent>
+          <div className="mb-4 flex flex-wrap gap-3 items-end">
+            <DatePicker value={fromDate} onChange={setFromDate} label="From" />
+            <DatePicker value={toDate} onChange={setToDate} label="To" />
+            <div className="flex flex-col gap-3">
+              <label className="px-1 text-sm">Tx Type</label>
+              <Select value={txType} onValueChange={(v) => setTxType(v)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All" key="All">
+                    All
+                  </SelectItem>
+                  {TX_LABELS.map((l) => (
+                    <SelectItem value={l} key={l}>
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFromDate(undefined);
+                  setToDate(undefined);
+                  setTxType("All");
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          </div>
+
           <Table className="table-fixed">
             <TableCaption>A list of your recent transactions.</TableCaption>
             <TableHeader>
@@ -137,7 +202,7 @@ export function TransactionHistory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction) => (
+              {filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id} className="h-13">
                   <TableCell
                     className="font-mono text-sm font-medium truncate"

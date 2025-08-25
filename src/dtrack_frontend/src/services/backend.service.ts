@@ -54,6 +54,7 @@ export class BackendService {
         const maybeId = typeof transaction_id === "string" && /^\d+$/.test(transaction_id) ? BigInt(transaction_id) : transaction_id;
         const payload: SetTransactionLabelRequest = { transaction_id: maybeId as bigint, label };
         const res = await this.actor.set_transaction_label(payload);
+        console.log("set_transaction_label response:", res);
         if ("Ok" in res) return res.Ok;
         throw new Error(res.Err || "set_transaction_label failed");
     }

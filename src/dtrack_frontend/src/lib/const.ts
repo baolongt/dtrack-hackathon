@@ -20,12 +20,15 @@ export const VIEW_TITLES: Record<string, string> = {
 export const SENT_LABEL = "On-chain Payment";
 export const RECEIVED_LABEL = "On-chain Revenue";
 
+export const INDEX_LABELS = [SENT_LABEL, RECEIVED_LABEL];
+
+export const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Investment", "Crowdfund", "Onchain-grant"];
+
 export const isSendLabel = (label: string) => {
     const lower = label.toLowerCase();
-    return lower === "payment" || lower === "purchase" || lower === "fee" || lower === "sent" || lower === "transfer";
+    const arr = ["On-chain Payment", "Refund", "Subscription", "Invoice Payment"];
+    return !arr.map((s) => s.toLowerCase()).includes(lower);
 }
 
-export const isReceiveLabel = (label: string) => {
-    const lower = label.toLowerCase();
-    return lower === "refund" || lower === "reimbursement" || lower === "received";
-}
+
+
