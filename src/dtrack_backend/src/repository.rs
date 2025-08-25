@@ -8,7 +8,7 @@ use ic_stable_structures::{
 use std::cell::RefCell;
 
 use crate::types::{
-    Accounts, CustomTransaction, CustomTransactions, LabeledAccount, StoredAccount,
+    Accounts, CustomTransaction, CustomTransactions, LabelList, LabeledAccount, StoredAccount,
     TransactionLabelRecord, TxLabels,
 };
 
@@ -30,6 +30,12 @@ thread_local! {
     );
 
     pub static CUSTOM_TRANSACTIONS: RefCell<StableBTreeMap<Principal, CustomTransactions, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(2)))
+        )
+    );
+
+    pub static USER_LABEL: RefCell<StableBTreeMap<Principal, LabelList, Memory>> = RefCell::new(
         StableBTreeMap::init(
             MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(2)))
         )
@@ -221,6 +227,22 @@ pub fn delete_custom_transaction(principal: &Principal, id: &str) -> Result<(), 
             }
         } else {
             Err("No custom transactions for this principal".to_string())
+        }
+    })
+}
+
+pub fn add_label(principal: &Principal, label: String) -> Result<(), String> {
+    USER_LABEL.with_borrow_mut(|ul| {
+        let mut entry = ul.get(principal).unwrap_or_else(|| LabelList(vec![]));
+        if entry.0.len() >= 50 {
+            return Err("Maximum number of labels reached".to_string());
+        }
+        if !entry.0.contains(&label) {
+            entry.0.push(label);
+            ul.insert(principal.clone(), entry);
+            Ok(())
+        } else {
+            return Err("Label already exists".to_string());
         }
     })
 }

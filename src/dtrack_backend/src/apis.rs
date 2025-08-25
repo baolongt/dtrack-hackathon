@@ -138,3 +138,12 @@ pub fn update_custom_transaction(transaction: CustomTransaction) -> Result<(), S
 pub fn delete_custom_transaction(id: String) -> Result<(), String> {
     repo_delete_custom_transaction(&msg_caller(), &id)
 }
+
+#[ic_cdk::update]
+pub fn add_label(label: String) -> Result<(), String> {
+    if !validate_label(&label) {
+        return Err("Invalid label".to_string());
+    }
+
+    crate::repository::add_label(&msg_caller(), label.trim().to_string())
+}
