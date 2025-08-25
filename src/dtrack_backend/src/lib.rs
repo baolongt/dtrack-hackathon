@@ -1,8 +1,9 @@
 mod apis;
 mod repository;
+mod types;
 
 use apis::*;
-use repository::*;
-use icrc_ledger_types::icrc1::account::Account;
+// (no direct Account import needed in lib; types are exported from `types`)
+use types::*;
 
 ic_cdk::export_candid!();

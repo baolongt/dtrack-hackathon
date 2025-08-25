@@ -3,22 +3,22 @@ use crate::repository::{
     delete_custom_transaction as repo_delete_custom_transaction, get_accounts,
     get_custom_transactions as repo_get_custom_transactions,
     get_transaction_labels as repo_get_transaction_labels, remove_account,
-    set_transaction_label as repo_set_transaction_label, update_account, update_custom_transaction as repo_update_custom_transaction,
-    CustomTransaction, LabeledAccount, TransactionLabelRecord,
+    set_transaction_label as repo_set_transaction_label, update_account,
+    update_custom_transaction as repo_update_custom_transaction,
 };
+use crate::types::{CustomTransaction, LabeledAccount, StoredAccount, TransactionLabelRecord};
 use candid::{CandidType, Deserialize};
 use ic_cdk::api::msg_caller;
-use icrc_ledger_types::icrc1::account::Account;
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct CreateLabeledAccountRequest {
-    pub account: Account,
+    pub account: StoredAccount,
     pub label: String,
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct UpdateLabeledAccountRequest {
-    pub account: Account,
+    pub account: StoredAccount,
     pub label: String,
 }
 
@@ -65,7 +65,7 @@ pub fn get_labeled_accounts() -> Result<Vec<LabeledAccount>, String> {
 }
 
 #[ic_cdk::update]
-pub fn delete_labeled_account(address: Account) -> Result<(), String> {
+pub fn delete_labeled_account(address: StoredAccount) -> Result<(), String> {
     remove_account(&msg_caller(), &address)
 }
 

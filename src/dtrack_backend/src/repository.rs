@@ -1,108 +1,18 @@
-use candid::{CandidType, Decode, Deserialize, Encode, Principal};
+use candid::Principal;
 use ic_cdk::api::time;
-use ic_stable_structures::storable::Bound;
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
-    DefaultMemoryImpl, StableBTreeMap, Storable,
+    DefaultMemoryImpl, StableBTreeMap,
 };
-use icrc_ledger_types::icrc1::account::Account;
-use std::borrow::Cow;
+// Account types are represented via StoredAccount in `types.rs`.
 use std::cell::RefCell;
 
+use crate::types::{
+    Accounts, CustomTransaction, CustomTransactions, LabeledAccount, StoredAccount,
+    TransactionLabelRecord, TxLabels,
+};
+
 pub type Memory = VirtualMemory<DefaultMemoryImpl>;
-
-#[derive(CandidType, Deserialize)]
-struct Accounts {
-    pub accounts: Vec<LabeledAccount>,
-}
-
-#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct LabeledAccount {
-    pub account: Account,
-    pub label: String,
-}
-
-impl Storable for Accounts {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
-    }
-
-    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
-    }
-
-    fn into_bytes(self) -> Vec<u8> {
-        Encode!(&self).unwrap()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 4096,
-        is_fixed_size: false,
-    };
-}
-
-// New type for storing a single transaction label
-#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct TransactionLabelRecord {
-    pub id: u64,
-    pub label: String,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct TxLabels {
-    pub labels: Vec<TransactionLabelRecord>,
-}
-
-impl Storable for TxLabels {
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
-    }
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
-    }
-    fn into_bytes(self) -> Vec<u8> {
-        Encode!(&self).unwrap()
-    }
-    const BOUND: Bound = Bound::Bounded {
-        max_size: 4096,
-        is_fixed_size: false,
-    };
-}
-
-// CustomTransaction types (added to match updated .did)
-#[derive(CandidType, Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct CustomTransaction {
-    pub id: String,
-    pub timestamp_ms: u64,
-    pub label: String,
-    pub amount: u64,
-}
-
-#[derive(CandidType, Deserialize)]
-pub struct CustomTransactions {
-    pub transactions: Vec<CustomTransaction>,
-}
-
-impl Storable for CustomTransactions {
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
-    }
-
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
-    }
-
-    fn into_bytes(self) -> Vec<u8> {
-        Encode!(&self).unwrap()
-    }
-
-    const BOUND: Bound = Bound::Bounded {
-        // allow larger storage for custom transactions; adjust as needed
-        max_size: 8192,
-        is_fixed_size: false,
-    };
-}
-
 thread_local! {
     pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
         RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -152,7 +62,7 @@ pub fn add_account(principal: &Principal, account: LabeledAccount) -> Result<(),
     })
 }
 
-pub fn remove_account(principal: &Principal, account: &Account) -> Result<(), String> {
+pub fn remove_account(principal: &Principal, account: &StoredAccount) -> Result<(), String> {
     ACCOUNTS.with_borrow_mut(|accounts| {
         if let Some(mut accounts_entry) = accounts.get(principal) {
             if let Some(pos) = accounts_entry
