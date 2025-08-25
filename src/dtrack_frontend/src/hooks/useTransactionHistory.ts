@@ -13,6 +13,7 @@ export function useTransactionHistory() {
         createCustomTransaction,
         fetchIndexTransactions,
         fetchAll,
+        fetchTransactionLabels
     } = useAccountStore(
         useShallow((s) => ({
             labeledAccounts: s.labeledAccounts,
@@ -23,6 +24,7 @@ export function useTransactionHistory() {
             createCustomTransaction: s.createCustomTransaction,
             fetchIndexTransactions: s.fetchIndexTransactions,
             fetchAll: s.fetchAll,
+            fetchTransactionLabels: s.fetchTransactionLabels,
         }))
     );
 
@@ -37,7 +39,6 @@ export function useTransactionHistory() {
     const [isCreating, setIsCreating] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-    const [showCreateForm, setShowCreateForm] = useState(false);
 
     const [newTx, setNewTx] = useState<{
         date: string;
@@ -94,6 +95,7 @@ export function useTransactionHistory() {
                 });
             } else {
                 await updateTransactionLabel(editingTx.id, editingTx.label);
+                await fetchTransactionLabels();
             }
             await fetchAll();
             setEditingTx(null);
@@ -136,7 +138,6 @@ export function useTransactionHistory() {
                 account: newTx.account || 'custom',
             });
             setNewTx({ date: "", label: "", amount: "" });
-            setShowCreateForm(false);
             await fetchAll();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed to create");
@@ -263,8 +264,6 @@ export function useTransactionHistory() {
         isCreating,
         isDownloading,
         isDownloadingPdf,
-        showCreateForm,
-        setShowCreateForm,
         newTx,
         setNewTx,
         currency,

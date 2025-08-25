@@ -17,11 +17,11 @@ demo iterations="" interval="":
 
     # Airdrop to test1 so it has funds to send
     echo "airdropping to test1"
-  just dfx_local_airdrop $principal_test1
-  echo "airdropping to test2"
-  just dfx_local_airdrop $principal_test2
-  echo "airdropping to test3"
-  just dfx_local_airdrop $principal_test3
+    just dfx_local_airdrop $principal_test1
+    echo "airdropping to test2"
+    just dfx_local_airdrop $principal_test2
+    echo "airdropping to test3"
+    just dfx_local_airdrop $principal_test3
 
     for i in `seq 1 $iterations`; do
       idname="demo_$i"

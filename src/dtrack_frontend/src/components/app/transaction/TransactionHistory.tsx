@@ -46,8 +46,6 @@ export function TransactionHistory() {
     isCreating,
     isDownloading,
     isDownloadingPdf,
-    showCreateForm,
-    setShowCreateForm,
     newTx,
     setNewTx,
     currency,
@@ -57,7 +55,7 @@ export function TransactionHistory() {
     handleCreate,
     handleDownloadExcel,
     handleDownloadPDF,
-    fetchIndexTransactions,
+    fetchAll,
   } = useTransactionHistory();
 
   // Filters
@@ -106,7 +104,7 @@ export function TransactionHistory() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={async () => await fetchIndexTransactions()}
+                onClick={async () => await fetchAll()}
                 className="flex items-center gap-2"
               >
                 <RefreshCw className="h-4 w-4" />

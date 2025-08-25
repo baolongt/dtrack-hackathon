@@ -70,9 +70,6 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         get().clear()
     },
 
-
-
-
     async fetchLabeledAccounts() {
         let backendService = BackendService.getInstance(get().identity || undefined)
         set({ isLoadingLabeled: true, error: null })
@@ -276,7 +273,6 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             const maybeId = /^\d+$/.test(transactionId) ? BigInt(transactionId) : (transactionId as any)
             const result = await backend.setTransactionLabel(maybeId, label)
             if (result) {
-                await get().fetchIndexTransactions()
                 return true
             }
             return false
