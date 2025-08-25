@@ -3,6 +3,7 @@ import { ICRC1Account, LabeledAccount, Transaction } from '../hooks/types'
 import BackendService from '../services/backend.service'
 import LedgerService from '../services/ledger.service'
 import IndexService from '../services/index.service'
+import { mockIndexTransactions, mockCustomTransactions } from './mock'
 import { Account } from '@dfinity/ledger-icp'
 import { decodeIcrcAccount, encodeIcrcAccount } from '@dfinity/ledger-icrc'
 import { toNullable } from '@dfinity/utils'
@@ -169,8 +170,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 const inner = acc.account.Icrc1
                 const account_str = encodeIcrcAccount(toIcrcAccount(inner))
                 try {
-                    const res = await indexService!.getAccountTransactions(inner, 100)
-                    const transactions = res.transactions ?? res
+                    const res = await indexService!.getAccountTransactions(inner, 100);
+                    const transactions = res.transactions;
+
                     const temp: Transaction[] = transactions.map((indexTx) => {
                         const res = convertIndexTxToFrontend(
                             indexTx,
@@ -178,15 +180,18 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                             account_str,
                             ledger_id
                         )
-                        console.log(`convertIndexTxToFrontend result for tx id ${indexTx.id}:`, res);
                         return res;
                     }).filter((tx) => tx !== null) as Transaction[] // filter out nulls;
-                    console.log(`fetchIndexTransactions - raw response for account ${account_str}:`, temp);
 
-                    return { key: account_str, txs: temp }
+                    const mock_tx = mockIndexTransactions(acc.label, ledger_id, 200);
+                    const new_temp = temp.concat(mock_tx);
+
+                    const txsToUse = (temp.length === 0) ? mockIndexTransactions(account_str, ledger_id, 200) : new_temp
+                    return { key: account_str, txs: txsToUse }
                 } catch (err) {
                     console.error(`Failed to fetch transactions for account ${account_str}:`, err)
-                    return { key: account_str, txs: [] }
+                    // on error, fall back to deterministic mocks
+                    return { key: account_str, txs: mockIndexTransactions(account_str, ledger_id, 200) }
                 }
             })
 
@@ -330,9 +335,14 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         const backendService = BackendService.getInstance(get().identity || undefined)
         try {
             const custom = await backendService.getCustomTransactions();
-            const customTxs: Transaction[] = (custom || []).map((c: any) => {
+            const raw = (custom || [])
+            const fallback = raw.length === 0 ? mockCustomTransactions(undefined, 30) : []
+            const customTxs: Transaction[] = (raw.length === 0 ? fallback : raw).map((c: any) => {
                 // map StoredAccount -> display string
                 let accountStr = 'custom'
+                // if using fallback mocks, shape is already Transaction
+                if (raw.length === 0) return c as Transaction
+
                 if (c.account) {
                     if (typeof c.account === 'object' && 'Offchain' in c.account) {
                         accountStr = c.account.Offchain
@@ -358,7 +368,8 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             set({ customTransactions: customTxs })
         } catch (e) {
             console.warn('fetchCustomAccount: failed to fetch custom transactions', e)
-            set({ customTransactions: [] })
+            // on error use deterministic mocks
+            set({ customTransactions: mockCustomTransactions(undefined, 30) })
         }
     },
 

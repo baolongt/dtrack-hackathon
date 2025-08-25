@@ -6,10 +6,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
+// use native date input instead of the DatePicker
 import {
   Select,
   SelectTrigger,
@@ -58,24 +57,31 @@ export default function AddTransactionDialog({
       <DialogTrigger asChild>
         <Button variant="default" size="sm" className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          Add Custom
+          Add Off-chain transaction
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-md w-full max-h-[70vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>Add Custom Transaction</DialogTitle>
+          <DialogTitle>Add Off-chain Transaction</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end">
-          <div className="flex flex-col">
-            <DatePicker
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-2 w-full text-sm"
+        >
+          <div className="flex flex-col w-full">
+            <label className="text-xs text-muted-foreground mb-1">Date</label>
+            <Input
+              type="date"
               value={newTx.date}
-              onChange={(iso) => setNewTx({ ...newTx, date: iso || "" })}
-              label="Date & Time"
+              onChange={(e) => setNewTx({ ...newTx, date: e.target.value })}
+              className="w-full py-1"
+              required
             />
           </div>
-          <div className="flex flex-col">
-            <label className="text-sm text-muted-foreground">
+
+          <div className="flex flex-col w-full">
+            <label className="text-xs text-muted-foreground mb-1">
               Amount (USD)
             </label>
             <Input
@@ -83,17 +89,18 @@ export default function AddTransactionDialog({
               step="0.01"
               value={newTx.amount}
               onChange={(e) => setNewTx({ ...newTx, amount: e.target.value })}
-              className="border rounded p-1"
+              className="w-full py-1"
               required
             />
           </div>
-          <div className="flex-1 flex flex-col">
-            <label className="text-sm text-muted-foreground">Label</label>
+
+          <div className="flex flex-col w-full">
+            <label className="text-xs text-muted-foreground mb-1">Label</label>
             <Select
               value={newTx.label}
               onValueChange={(v) => setNewTx({ ...newTx, label: v })}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full h-9">
                 <SelectValue placeholder="Select a label" />
               </SelectTrigger>
               <SelectContent>
@@ -106,8 +113,13 @@ export default function AddTransactionDialog({
             </Select>
           </div>
 
-          <DialogFooter className="flex gap-2">
-            <Button type="submit" size="sm" disabled={isCreating}>
+          <div className="flex justify-end gap-2 mt-1">
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isCreating}
+              className="px-3 py-1"
+            >
               {isCreating ? "Creating..." : "Create"}
             </Button>
             <Button
@@ -115,10 +127,11 @@ export default function AddTransactionDialog({
               size="sm"
               onClick={() => setOpen(false)}
               disabled={isCreating}
+              className="px-3 py-1"
             >
               Cancel
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

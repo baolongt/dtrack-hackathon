@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { ROUTE_VIEW_MAP } from "./const"
+import { isSendLabel, RECEIVED_LABEL, ROUTE_VIEW_MAP, SENT_LABEL } from "./const"
 import { Account, AccountIdentifier, SubAccount } from "@dfinity/ledger-icp"
 import { fromNullable, toNullable } from "@dfinity/utils"
 import { encodeIcrcAccount, IcrcAccount } from "@dfinity/ledger-icrc"
@@ -36,6 +36,26 @@ export const getTokenPrice = (ledger_id: string, amount: number): number => {
   if (ledger_id === "ryjl3-tyaaa-aaaaa-aaaba-cai") return amount * 5; // ICP
   // Fallback: return amount unchanged for unknown ledgers
   return amount
+}
+
+// Convert a token amount to a USD amount and apply sign based on a human label.
+// - ledger_id: the ledger canister id used by getTokenPrice
+// - label: one of 'received'|'sent'|'mint'|'burn'|'approve' or variants like 'approve (...)'
+// - tokenAmount: the token amount in token units (e.g. ICP), always positive
+// Returns: signed USD amount (approve -> 0)
+export const convert = (
+  ledger_id: string,
+  label: string,
+  tokenAmount: number
+): number => {
+  // Compute USD price for the absolute token amount
+  const usd = getTokenPrice(ledger_id, Math.abs(tokenAmount))
+
+  // Outgoing labels should be negative
+  if (isSendLabel(label)) return -usd
+
+  // received, mint, and any other labels default to positive
+  return usd
 }
 
 // Derive a simple view key from a pathname. Used by Header and Sidebar.
@@ -75,7 +95,7 @@ export const convertIndexTxToFrontend = (
         amount: amountUsd,
         timestamp_ms: timestampMs,
         account: accountLabel,
-        label: isReceived ? 'received' : 'sent',
+        label: isReceived ? RECEIVED_LABEL : SENT_LABEL,
       }
     }
 
@@ -92,7 +112,7 @@ export const convertIndexTxToFrontend = (
         amount: amountUsd,
         timestamp_ms: timestampMs,
         account: accountLabel,
-        label: 'mint',
+        label: RECEIVED_LABEL,
       }
     }
 

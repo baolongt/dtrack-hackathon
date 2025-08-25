@@ -1,4 +1,3 @@
-import { mockTransactions } from "@/mocks/tx.mock";
 import useAccountStore from "@/stores/account.store";
 import { TotalRevenueCard } from "./TotalRevenueCard";
 import { NetProfitCard } from "./NetProfitCard";
@@ -111,9 +110,10 @@ export function FinancialOverview(props: FinancialOverviewProps) {
 
   // flatten transactions from store
   const storeTxs = labeled?.flatMap((acc) => acc.transactions || []) ?? [];
+  const customTxs = useAccountStore((s) => s.customTransactions) ?? [];
 
-  // if store has no transactions, fall back to mocks
-  const txSource = storeTxs.length > 0 ? storeTxs : mockTransactions;
+  // merge indexed txs + custom txs so custom transactions are included in metrics
+  const txSource = [...storeTxs, ...customTxs];
 
   const calculated = calculateFinancialMetrics(txSource as any[]);
 

@@ -16,3 +16,16 @@ export const VIEW_TITLES: Record<string, string> = {
     financial_report: "Financial Report",
     market_report: "Market Reports",
 };
+
+export const SENT_LABEL = "On-chain Payment";
+export const RECEIVED_LABEL = "On-chain Revenue";
+
+export const isSendLabel = (label: string) => {
+    const lower = label.toLowerCase();
+    return lower === "payment" || lower === "purchase" || lower === "fee" || lower === "sent" || lower === "transfer";
+}
+
+export const isReceiveLabel = (label: string) => {
+    const lower = label.toLowerCase();
+    return lower === "refund" || lower === "reimbursement" || lower === "received";
+}

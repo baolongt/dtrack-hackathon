@@ -17,6 +17,7 @@ import Header from "./components/app/layout/Header";
 import HomeSidebar from "./components/app/layout/HomeSidebar";
 import useAccountStore from "./stores/account.store";
 import { useShallow } from "zustand/shallow";
+import FinancialPage from "./components/pages/Financial";
 
 // Login required screen (reused)
 function LoginRequired() {
@@ -98,7 +99,8 @@ const App: React.FC = () => {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/accounts" element={<AccountsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/market-report" element={<FinancialPage />} />
+              <Route path="/financial-report" element={<FinancialPage />} />
             </Routes>
           </main>
         </div>

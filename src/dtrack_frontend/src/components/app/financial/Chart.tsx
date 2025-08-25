@@ -1,27 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { TrendingUp } from "lucide-react";
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  ResponsiveContainer,
+  Tooltip,
+  YAxis,
+} from "recharts";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import aggregateTransactionsByDay from "@/lib/aggregate/aggregateByDay";
+import { ChartConfig } from "@/components/ui/chart";
 import useAccountStore from "@/stores/account.store";
-import { TransactionDataChartMonthly } from "./MonthlyChart";
 
 export const description = "An interactive line chart";
 
@@ -46,129 +37,182 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function TransactionDataChartLine() {
-  const [activeChart, setActiveChart] =
-    React.useState<keyof typeof chartConfig>("total_received");
-
-  // get transactions from store and aggregate by day for charting
+  // get transactions from store
   const labeled = useAccountStore((s) => s.labeledAccounts);
   const storeTxs = labeled?.flatMap((acc) => acc.transactions || []) ?? [];
 
-  const chartData: ChartDataPoint[] = React.useMemo(() => {
-    // merge indexed txs + custom txs
-    const merged = [...(storeTxs as any[])];
-    return aggregateTransactionsByDay(merged) as ChartDataPoint[];
+  // map store transactions into a simplified shape { amount, date, type }
+  const transactions = React.useMemo(() => {
+    return (storeTxs as any[]).map((t) => {
+      const amount = Number(t.amount) || 0;
+      const date = t.timestamp_ms
+        ? new Date(Number(t.timestamp_ms))
+        : new Date();
+      const label = (t.label || "").toLowerCase();
+      let type = "On-chain revenue";
+      // heuristic mapping from label to type
+      const expenseLabels = new Set(["payment", "purchase", "fee"]);
+      if (t.isCustom) {
+        type = "Off-chain revenue";
+      } else if (expenseLabels.has(label)) {
+        type = "On-chain payment";
+      } else if (label === "transfer") {
+        type = "On-chain payment";
+      } else if (label === "refund") {
+        type = "On-chain revenue";
+      }
+      return { amount, date, type };
+    });
   }, [storeTxs]);
 
-  const total = React.useMemo(
-    () => ({
-      total_received: chartData.reduce(
-        (acc, curr) => acc + curr.total_received,
-        0
-      ),
-      transaction_count: chartData.reduce(
-        (acc, curr) => acc + curr.transaction_count,
-        0
-      ),
-    }),
-    []
-  );
+  const formatCurrency = (v: number) =>
+    `$${v.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 
-  // compute simple trend for active chart (percent change from previous to last)
-  const trend = React.useMemo(() => {
-    // only compute trend for keys that exist on ChartDataPoint
-    if (chartData.length < 2) return 0;
-    if (activeChart !== "total_received" && activeChart !== "transaction_count")
-      return 0;
-    const sorted = [...chartData].sort(
-      (a, b) => +new Date(a.date) - +new Date(b.date)
-    );
-    const key = activeChart as keyof ChartDataPoint;
-    const last = (sorted[sorted.length - 1][key] as number) || 0;
-    const prev = (sorted[sorted.length - 2][key] as number) || 0;
-    if (prev === 0) return 0;
-    return ((last - prev) / Math.abs(prev)) * 100;
-  }, [activeChart]);
+  const { totalRevenue, netProfit, totalExpenses, revenueOverTimeData } =
+    React.useMemo(() => {
+      // --- Metric Calculations ---
+      const totalOnChainRevenue = transactions
+        .filter((t) => t.type === "On-chain revenue")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalOffChainRevenue = transactions
+        .filter(
+          (t) => t.type === "On-chain grant" || t.type === "Off-chain revenue"
+        )
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalRevenue = totalOnChainRevenue + totalOffChainRevenue;
+
+      const totalExpenses = transactions
+        .filter(
+          (t) =>
+            t.type === "On-chain payment" || t.type === "Off-chain expenses"
+        )
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const netProfit = totalRevenue - totalExpenses;
+
+      // --- Chart Data Calculation: last 6 months ---
+      const now = new Date();
+      const revenueByMonth: { [key: string]: number } = {};
+      const months: Date[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(d);
+        const monthName = d.toLocaleString("default", { month: "short" });
+        revenueByMonth[monthName] = 0;
+      }
+
+      // compute start / end bounds for last 6 months
+      const start = new Date(months[0].getFullYear(), months[0].getMonth(), 1);
+      const end = new Date(
+        months[months.length - 1].getFullYear(),
+        months[months.length - 1].getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999
+      );
+
+      transactions.forEach((t) => {
+        const txDate = new Date(t.date);
+        if (txDate >= start && txDate <= end) {
+          const monthName = txDate.toLocaleString("default", {
+            month: "short",
+          });
+          if (
+            t.type === "On-chain revenue" ||
+            t.type === "On-chain grant" ||
+            t.type === "Off-chain revenue"
+          ) {
+            revenueByMonth[monthName] =
+              (revenueByMonth[monthName] || 0) + t.amount;
+          }
+        }
+      });
+
+      const revenueOverTimeData = months.map((d) => {
+        const monthName = d.toLocaleString("default", { month: "short" });
+        return {
+          name: monthName,
+          "Total Revenue": revenueByMonth[monthName] || 0,
+        };
+      });
+
+      return { totalRevenue, netProfit, totalExpenses, revenueOverTimeData };
+    }, [transactions]);
 
   return (
-    <Card className="py-4 sm:py-0">
-      <CardHeader className="flex flex-col items-stretch border-b !p-0 sm:flex-row">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-6 pb-3 sm:pb-0">
-          <CardTitle>Transaction Chart</CardTitle>
-          <CardDescription>
-            Showing transaction data for the last month
-          </CardDescription>
+    <div className="rounded-xl border bg-card text-card-foreground shadow">
+      <div className="p-6">
+        <h3 className="tracking-tight text-lg font-medium">
+          Total Revenue Over Time
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          A summary of your total revenue over the last 6 months.
+        </p>
+      </div>
+      <div className="p-6 pt-0">
+        <div className="h-[350px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={revenueOverTimeData}
+              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke="hsl(214.3, 31.8%, 91.4%)"
+              />
+              <XAxis
+                dataKey="name"
+                stroke="hsl(215.4, 16.3%, 46.9%)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="hsl(215.4, 16.3%, 46.9%)"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) =>
+                  `$${((value as number) / 1000).toFixed(0)}k`
+                }
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(0, 0%, 100%)",
+                  border: "1px solid hsl(214.3, 31.8%, 91.4%)",
+                  borderRadius: "0.5rem",
+                }}
+                labelStyle={{
+                  color: "hsl(222.2, 84%, 4.9%)",
+                  fontWeight: "bold",
+                }}
+                itemStyle={{ color: "hsl(222.2, 47.4%, 11.2%)" }}
+                formatter={(value) => [
+                  formatCurrency(value as number),
+                  "Total Revenue",
+                ]}
+              />
+              <Line
+                type="monotone"
+                dataKey="Total Revenue"
+                stroke="hsl(222.2, 47.4%, 11.2%)"
+                strokeWidth={2}
+                dot={{ r: 4, fill: "hsl(222.2, 47.4%, 11.2%)" }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-        <div className="flex">
-          {["total_received", "transaction_count"].map((key) => {
-            const chart = key as keyof typeof chartConfig;
-            return (
-              <button
-                key={chart}
-                data-active={activeChart === chart}
-                className="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
-                onClick={() => setActiveChart(chart)}
-              >
-                <span className="text-muted-foreground text-xs">
-                  {chartConfig[chart].label}
-                </span>
-                <span className="text-lg leading-none font-bold sm:text-3xl">
-                  {total[key as keyof typeof total].toLocaleString()}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </CardHeader>
-      <CardContent className="px-2 sm:p-6">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
-        >
-          <LineChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              left: 12,
-              right: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tickFormatter={(value) => {
-                const date = new Date(value);
-                return date.toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                });
-              }}
-            />
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-            <Line
-              dataKey={activeChart}
-              type="monotone"
-              stroke={`var(--color-${activeChart})`}
-              strokeWidth={2}
-              dot={{ fill: `var(--color-${activeChart})` }}
-              activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ChartContainer>
-      </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 leading-none font-medium">
-          Trending {trend >= 0 ? "up" : "down"} by {trend.toFixed(1)}% this
-          period <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="text-muted-foreground leading-none">
-          Showing transaction totals for the selected range
-        </div>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -176,18 +220,7 @@ export function TransactionDataChartLine() {
 export function TransactionChartTabs() {
   return (
     <div className="w-full">
-      <Tabs defaultValue="daily" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="daily">Daily</TabsTrigger>
-          <TabsTrigger value="monthly">Monthly</TabsTrigger>
-        </TabsList>
-        <TabsContent value="daily">
-          <TransactionDataChartLine />
-        </TabsContent>
-        <TabsContent value="monthly">
-          <TransactionDataChartMonthly />
-        </TabsContent>
-      </Tabs>
+      <TransactionDataChartLine />
     </div>
   );
 }
