@@ -58,6 +58,7 @@ dfx_local_info:
 [group('dfx')]
 dfx_local_airdrop target_principal:
   #!/usr/bin/env bash
+  dfx identity use cashier_local_dev
   set -e
   dfx canister call icp_ledger_canister icrc1_transfer "(record { 
         to = record { 

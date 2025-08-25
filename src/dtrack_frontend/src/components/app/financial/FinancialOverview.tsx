@@ -1,14 +1,5 @@
-import * as React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, DollarSign, BarChart3 } from "lucide-react";
-import { mockData, mockTransactions } from "@/mocks/tx.mock";
+import { mockTransactions } from "@/mocks/tx.mock";
+import useAccountStore from "@/stores/account.store";
 import { TotalRevenueCard } from "./TotalRevenueCard";
 import { NetProfitCard } from "./NetProfitCard";
 import { TotalExpensesCard } from "./TotalExpensesCard";
@@ -27,41 +18,77 @@ interface FinancialOverviewProps {
   expenses?: number;
 }
 
-// Calculate financial metrics from mock data
-const calculateFinancialMetrics = (): FinancialMetrics => {
-  // Calculate total revenue from recent transactions
-  const totalReceived = mockTransactions
-    .filter((tx) => tx.type === "received" && tx.status === "completed")
-    .reduce((sum, tx) => sum + tx.amount, 0);
+// Aggregate transactions (prefer store transactions, fallback to mocks) and compute metrics
+const calculateFinancialMetrics = (transactions: any[]): FinancialMetrics => {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const weekMs = 7 * dayMs;
 
-  const totalSent = mockTransactions
-    .filter((tx) => tx.type === "sent" && tx.status === "completed")
-    .reduce((sum, tx) => sum + tx.amount, 0);
+  // normalize transactions to unified shape: { amount: number, timestamp_ms: number, status?: string }
+  const normalized = transactions
+    .map((tx) => {
+      // already a frontend Transaction shape from store
+      if (
+        typeof tx.amount === "number" &&
+        typeof tx.timestamp_ms === "number"
+      ) {
+        return tx;
+      }
 
-  // Cash flow = received - sent
-  const cashFlow = totalReceived - totalSent;
+      // mockTransactions shape
+      // { id, date, amount, type, address, status }
+      if (tx.date) {
+        const amt = tx.type === "received" ? tx.amount : -Math.abs(tx.amount);
+        return {
+          id: tx.id,
+          amount: amt,
+          timestamp_ms: Date.parse(tx.date),
+          account: tx.address ?? "mock",
+          label: tx.type ?? "mock",
+        };
+      }
 
-  // Revenue from last 30 days of transaction summary
-  const recentRevenue = mockData.TransactionSummary.slice(-7) // Last 7 days
-    .reduce((sum, day) => sum + day.total_received, 0);
+      // fallback: try best-effort
+      return {
+        id: tx.id ?? String(Math.random()),
+        amount: Number(tx.amount) || 0,
+        timestamp_ms: Number(tx.timestamp_ms) || now,
+        account: tx.account ?? "unknown",
+        label: tx.label ?? "",
+      };
+    })
+    .filter(Boolean) as Array<{ amount: number; timestamp_ms: number }>;
 
-  // Calculate growth (mock calculation)
-  const previousWeekRevenue = mockData.TransactionSummary.slice(-14, -7) // Previous 7 days
-    .reduce((sum, day) => sum + day.total_received, 0);
+  // overall cash flow (sum of amounts across all normalized txs)
+  const cashFlow = normalized.reduce((s, t) => s + (t.amount || 0), 0);
+
+  // Recent revenue: sum of received (amount > 0) in last 7 days
+  const recentRevenue = normalized
+    .filter((t) => t.amount > 0 && t.timestamp_ms >= now - weekMs)
+    .reduce((s, t) => s + t.amount, 0);
+
+  // previous week revenue
+  const previousWeekRevenue = normalized
+    .filter(
+      (t) =>
+        t.amount > 0 &&
+        t.timestamp_ms >= now - 2 * weekMs &&
+        t.timestamp_ms < now - weekMs
+    )
+    .reduce((s, t) => s + t.amount, 0);
 
   const revenueGrowth =
     previousWeekRevenue > 0
       ? ((recentRevenue - previousWeekRevenue) / previousWeekRevenue) * 100
       : 0;
 
-  // Mock inventory level (62% as shown in the design)
-  const inventoryLevel = 62;
+  const inventoryLevel = 62; // keep design default
 
   return {
-    cashFlow: cashFlow,
+    cashFlow,
     revenue: recentRevenue,
-    revenueGrowth: revenueGrowth,
-    inventoryLevel: inventoryLevel,
+    revenueGrowth,
+    inventoryLevel,
   };
 };
 
@@ -80,7 +107,15 @@ const formatPercentage = (percentage: number): string => {
 };
 
 export function FinancialOverview(props: FinancialOverviewProps) {
-  const calculated = calculateFinancialMetrics();
+  const labeled = useAccountStore((s) => s.labeledAccounts);
+
+  // flatten transactions from store
+  const storeTxs = labeled?.flatMap((acc) => acc.transactions || []) ?? [];
+
+  // if store has no transactions, fall back to mocks
+  const txSource = storeTxs.length > 0 ? storeTxs : mockTransactions;
+
+  const calculated = calculateFinancialMetrics(txSource as any[]);
 
   // start from calculated metrics and override with any provided props
   const metrics: FinancialMetrics = {

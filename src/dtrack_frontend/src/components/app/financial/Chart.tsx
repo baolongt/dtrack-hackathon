@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
+import { TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -17,7 +19,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { mockData } from "@/mocks/tx.mock";
+import aggregateTransactionsByDay from "@/lib/aggregate/aggregateByDay";
+import useAccountStore from "@/stores/account.store";
 import { TransactionDataChartMonthly } from "./MonthlyChart";
 
 export const description = "An interactive line chart";
@@ -27,14 +30,6 @@ interface ChartDataPoint {
   total_received: number;
   transaction_count: number;
 }
-
-const chartData: ChartDataPoint[] = mockData.TransactionSummary.map(
-  (entry: any) => ({
-    date: entry.date,
-    total_received: entry.total_received,
-    transaction_count: entry.transaction_count,
-  })
-);
 
 const chartConfig = {
   views: {
@@ -54,6 +49,14 @@ export function TransactionDataChartLine() {
   const [activeChart, setActiveChart] =
     React.useState<keyof typeof chartConfig>("total_received");
 
+  // get transactions from store and aggregate by day for charting
+  const labeled = useAccountStore((s) => s.labeledAccounts);
+  const storeTxs = labeled?.flatMap((acc) => acc.transactions || []) ?? [];
+
+  const chartData: ChartDataPoint[] = React.useMemo(() => {
+    return aggregateTransactionsByDay(storeTxs as any) as ChartDataPoint[];
+  }, [storeTxs]);
+
   const total = React.useMemo(
     () => ({
       total_received: chartData.reduce(
@@ -67,6 +70,22 @@ export function TransactionDataChartLine() {
     }),
     []
   );
+
+  // compute simple trend for active chart (percent change from previous to last)
+  const trend = React.useMemo(() => {
+    // only compute trend for keys that exist on ChartDataPoint
+    if (chartData.length < 2) return 0;
+    if (activeChart !== "total_received" && activeChart !== "transaction_count")
+      return 0;
+    const sorted = [...chartData].sort(
+      (a, b) => +new Date(a.date) - +new Date(b.date)
+    );
+    const key = activeChart as keyof ChartDataPoint;
+    const last = (sorted[sorted.length - 1][key] as number) || 0;
+    const prev = (sorted[sorted.length - 2][key] as number) || 0;
+    if (prev === 0) return 0;
+    return ((last - prev) / Math.abs(prev)) * 100;
+  }, [activeChart]);
 
   return (
     <Card className="py-4 sm:py-0">
@@ -126,31 +145,27 @@ export function TransactionDataChartLine() {
                 });
               }}
             />
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="w-[150px]"
-                  nameKey="views"
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    });
-                  }}
-                />
-              }
-            />
+            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             <Line
               dataKey={activeChart}
               type="monotone"
               stroke={`var(--color-${activeChart})`}
               strokeWidth={2}
-              dot={false}
+              dot={{ fill: `var(--color-${activeChart})` }}
+              activeDot={{ r: 6 }}
             />
           </LineChart>
         </ChartContainer>
       </CardContent>
+      <CardFooter className="flex-col items-start gap-2 text-sm">
+        <div className="flex gap-2 leading-none font-medium">
+          Trending {trend >= 0 ? "up" : "down"} by {trend.toFixed(1)}% this
+          period <TrendingUp className="h-4 w-4" />
+        </div>
+        <div className="text-muted-foreground leading-none">
+          Showing transaction totals for the selected range
+        </div>
+      </CardFooter>
     </Card>
   );
 }
