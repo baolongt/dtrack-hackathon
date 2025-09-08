@@ -1,4 +1,4 @@
-use crate::repository::{
+use crate::repository::{get_account,
     add_account, create_custom_transaction as repo_create_custom_transaction,
     delete_custom_transaction as repo_delete_custom_transaction, get_accounts,
     get_custom_transactions as repo_get_custom_transactions,
@@ -14,6 +14,7 @@ use ic_cdk::api::msg_caller;
 pub struct CreateLabeledAccountRequest {
     pub account: StoredAccount,
     pub label: String,
+    pub product: String,
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -37,6 +38,10 @@ fn validate_label(label: &str) -> bool {
     !label.trim().is_empty() && label.len() <= 100 // Max 100 characters
 }
 
+fn validate_product(product: &str) -> bool {
+    !product.trim().is_empty() && product.len() <= 100 // Max 100 characters
+}
+
 #[ic_cdk::update]
 pub fn create_labeled_account(
     request: CreateLabeledAccountRequest,
@@ -45,17 +50,23 @@ pub fn create_labeled_account(
         return Err("Invalid label".to_string());
     }
 
+    if !validate_product(&request.product) {
+        return Err("Invalid product".to_string());
+    }
+
     add_account(
         &msg_caller(),
         LabeledAccount {
             account: request.account.clone(),
             label: request.label.trim().to_string(),
+            product: request.product.clone(),
         },
     )?;
 
     Ok(LabeledAccount {
         account: request.account,
         label: request.label,
+        product: request.product,
     })
 }
 
@@ -75,12 +86,13 @@ pub fn update_labeled_account(request: UpdateLabeledAccountRequest) -> Result<()
         return Err("Invalid label".to_string());
     }
 
-    let labeled_account = LabeledAccount {
-        account: request.account.clone(),
-        label: request.label.trim().to_string(),
+    let mut saved_account = match get_account(&msg_caller(), &request.account.clone()){
+        Some(acc) => acc, 
+        None => return Err("Account not found".to_string())
     };
-
-    update_account(&msg_caller(), labeled_account)?;
+    saved_account.label = request.label.trim().to_string();
+    
+    update_account(&msg_caller(), saved_account)?;
 
     Ok(())
 }

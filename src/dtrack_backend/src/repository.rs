@@ -50,6 +50,16 @@ pub fn get_accounts(principal: &Principal) -> Vec<LabeledAccount> {
     })
 }
 
+pub fn get_account(principal: &Principal, account: &StoredAccount) -> Option<LabeledAccount> {
+    ACCOUNTS.with_borrow(|accounts| {
+        accounts
+            .get(principal)
+            .and_then(|accounts_entry| {
+                accounts_entry.accounts.iter().find(|la| la.account == *account).cloned()
+            })
+    })
+}
+
 pub fn add_account(principal: &Principal, account: LabeledAccount) -> Result<(), String> {
     ACCOUNTS.with_borrow_mut(|accounts| {
         let mut accounts_entry = accounts
