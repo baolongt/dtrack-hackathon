@@ -13,7 +13,7 @@ install_frontend_deps:
   cd {{FRONTEND_DIR}} && npm install
 
 [group('build')]
-build: download_artifacts build_canisters generate_frontend_ts
+build: install_frontend_deps download_artifacts build_canisters generate_frontend_ts
 
 [group('build')]
 build_canisters: pre_build
