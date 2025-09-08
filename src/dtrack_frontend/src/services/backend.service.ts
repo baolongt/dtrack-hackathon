@@ -100,6 +100,16 @@ export class BackendService {
     async getLabels() {
         return await this.actor.get_labels()
     }
+
+    async addProduct(product: string) {
+        const res = await this.actor.add_product(product);
+        if ("Ok" in res) return res.Ok;
+        throw new Error(res.Err || "add_product failed");
+    }
+
+    async getProducts() {
+        return await this.actor.get_products()
+    }
 }
 
 export default BackendService;

@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AddLabelDialog from "./AddLabelDialog";
+import AddProductDialog from "./AddProductDialog";
 import BackendService from "@/services/backend.service";
 
 export function AddWalletForm() {
@@ -28,21 +29,33 @@ export function AddWalletForm() {
   );
   // labels loaded from backend
   const [labels, setLabels] = React.useState<string[]>([]);
+  // products loaded from backend
+  const [products, setProducts] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const svc = BackendService.getInstance();
-        const res = await svc.getLabels();
+        const [labelsRes, productsRes] = await Promise.all([
+          svc.getLabels(),
+          svc.getProducts()
+        ]);
         if (!mounted) return;
-        // normalize response to string[]
-        let out: string[] = [];
-        if (Array.isArray(res)) out = res;
-        else if (res && typeof res === "object" && (res as any).Ok) out = (res as any).Ok;
-        setLabels(out || []);
+        
+        // normalize labels response to string[]
+        let labelsOut: string[] = [];
+        if (Array.isArray(labelsRes)) labelsOut = labelsRes;
+        else if (labelsRes && typeof labelsRes === "object" && (labelsRes as any).Ok) labelsOut = (labelsRes as any).Ok;
+        setLabels(labelsOut || []);
+
+        // normalize products response to string[]
+        let productsOut: string[] = [];
+        if (Array.isArray(productsRes)) productsOut = productsRes;
+        else if (productsRes && typeof productsRes === "object" && (productsRes as any).Ok) productsOut = (productsRes as any).Ok;
+        setProducts(productsOut || []);
       } catch (e) {
-        console.warn("Failed to load labels", e);
+        console.warn("Failed to load labels/products", e);
       }
     })();
     return () => {
@@ -55,20 +68,22 @@ export function AddWalletForm() {
     "principal"
   );
   const [label, setLabel] = React.useState("");
+  const [product, setProduct] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
 
   const handleAdd = async () => {
-    if (!idValue || !label) return;
+    if (!idValue || !label || !product) return;
     setIsAdding(true);
     try {
       // call the appropriate store method depending on input type
       if (mode === "offchain") {
-        await useAccountStore.getState().addOffchainAccount(idValue, label);
+        await useAccountStore.getState().addOffchainAccount(idValue, label, product);
       } else {
-        await addAccount(idValue, label);
+        await addAccount(idValue, label, product);
       }
       setIdValue("");
       setLabel("");
+      setProduct("");
     } catch (e) {
       alert("Failed to add wallet: " + e);
     } finally {
@@ -125,7 +140,7 @@ export function AddWalletForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   {mode === "principal" ? "Principal ID" : "Account ID"}
@@ -174,11 +189,41 @@ export function AddWalletForm() {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <div className="flex items-center justify-start gap-2 mb-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Product
+                  </label>
+                  <AddProductDialog onAdded={(newProduct) => {
+                    if (!newProduct) return;
+                    setProducts((p) => Array.from(new Set([...p, newProduct])));
+                    setProduct(newProduct);
+                  }} />
+                </div>
+                <Select value={product} onValueChange={(v) => setProduct(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.length === 0 ? (
+                      <SelectItem value="__none" key="__none">
+                        No products
+                      </SelectItem>
+                    ) : (
+                      products.map((p) => (
+                        <SelectItem value={p} key={p}>
+                          {p}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <Button
             onClick={handleAdd}
-            disabled={!idValue || !label}
+            disabled={!idValue || !label || !product}
             className="w-full md:w-auto"
           >
             {isAdding ? (

@@ -49,9 +49,9 @@ interface AccountStore {
     createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number; account: string }): Promise<{ ok: true; id: string } | never>
     updateCustomTransaction(tx: { id: string; timestamp_ms: number; label: string; amount: number; account: string }): Promise<boolean>
     deleteCustomTransaction(id: string): Promise<boolean>
-    addAccount(account: string, label: string): Promise<boolean>
+    addAccount(account: string, label: string, product?: string): Promise<boolean>
     removeAccount(account: string): Promise<boolean>
-    addOffchainAccount(account: string, label: string): Promise<boolean>
+    addOffchainAccount(account: string, label: string, product?: string): Promise<boolean>
     removeOffchainAccount(account: string): Promise<boolean>
     clear(): void
 }
@@ -75,9 +75,10 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         set({ isLoadingLabeled: true, error: null })
         try {
             const res = await backendService.getLabeledAccounts();
-            const labeled: LabeledAccount[] = res.map((item) => ({
+            const labeled: LabeledAccount[] = res.map((item: any) => ({
                 account: item.account,
                 label: item.label,
+                product: item.product,
                 balance: 0,
                 transactions: [],
             }))
@@ -206,7 +207,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                     const res = await indexService!.getAccountTransactions(inner, 100);
                     const transactions = res.transactions;
 
-                    const temp: Transaction[] = transactions.map((indexTx) => {
+                    const temp: Transaction[] = transactions.map((indexTx: any) => {
                         const res = convertIndexTxToFrontend(
                             indexTx,
                             acc.label,
@@ -214,7 +215,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                             ledger_id
                         )
                         return res;
-                    }).filter((tx) => tx !== null) as Transaction[] // filter out nulls;
+                    }).filter((tx: any) => tx !== null) as Transaction[] // filter out nulls;
 
                     const mock_tx = mockIndexTransactions(acc.label, ledger_id, 200);
                     const new_temp = temp.concat(mock_tx);
@@ -407,7 +408,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async addAccount(account: string, label: string) {
+    async addAccount(account: string, label: string, product: string = '') {
         try {
             const decoded = decodeIcrcAccount(account)
             const accountForCall: Account = {
@@ -416,7 +417,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             }
             const backend = BackendService.getInstance(get().identity || undefined)
             const storedAccount = { Icrc1: accountForCall } as any
-            await backend.createLabeledAccount({ label, account: storedAccount })
+            await backend.createLabeledAccount({ label, account: storedAccount, product })
             await get().fetchLabeledAccounts()
             return true
         } catch (e) {
@@ -424,11 +425,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async addOffchainAccount(account: string, label: string) {
+    async addOffchainAccount(account: string, label: string, product: string = '') {
         try {
             const backend = BackendService.getInstance(get().identity || undefined)
             const storedAccount = { Offchain: account } as any
-            await backend.createLabeledAccount({ label, account: storedAccount })
+            await backend.createLabeledAccount({ label, account: storedAccount, product })
             await get().fetchLabeledAccounts()
             return true
         } catch (e) {
