@@ -58,7 +58,7 @@ dfx_local_info:
 [group('dfx')]
 dfx_local_airdrop target_principal:
   #!/usr/bin/env bash
-  dfx identity use cashier_local_dev
+  dfx identity use dtrack_local_dev
   set -e
   dfx canister call icp_ledger_canister icrc1_transfer "(record { 
         to = record { 
@@ -85,8 +85,8 @@ dfx_local_logs_tail args="":
 
 [private]
 dfx_prepare_env: 
-  dfx identity new --storage-mode=plaintext --force cashier_local_dev
-  dfx identity use cashier_local_dev
+  dfx identity new --storage-mode=plaintext --force dtrack_local_dev
+  dfx identity use dtrack_local_dev
 
 
 [private]
@@ -129,7 +129,7 @@ dfx_local_deploy_icp_ledger:
 
   # dfx identity use default
   export DEFAULT_ACCOUNT_ID=$(dfx ledger account-id)
-  # dfx identity use cashier-dev
+
   export MINTER_ACCOUNT_ID=$(dfx ledger account-id)
 
   dfx deploy icp_ledger_canister --argument "
