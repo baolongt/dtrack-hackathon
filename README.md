@@ -47,9 +47,16 @@ The backend consists of:
 ### Prerequisite
 
 - [Just](https://github.com/casey/just)
+- [ic-wams](https://github.com/dfinity/ic-wasm)
 
 ### Local deploy
 
 ```bash
+just build
 just dfx_local_deploy
+
+# stop the local deployment
+# just stop
+# clean the build
+# just clean
 ```
