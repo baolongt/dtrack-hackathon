@@ -1,5 +1,5 @@
 type Account = record { owner : principal; subaccount : opt blob };
-type CreateLabeledAccountRequest = record { label : text; account : Account };
+type CreateLabeledAccountRequest = record { label : text; account : Account; product: text };
 type LabeledAccount = record { label : text; account : Account };
 type Result = variant { Ok : LabeledAccount; Err : text };
 type Result_1 = variant { Ok; Err : text };

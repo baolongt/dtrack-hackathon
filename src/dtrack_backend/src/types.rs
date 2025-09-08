@@ -20,6 +20,7 @@ pub struct Accounts {
 pub struct LabeledAccount {
     pub account: StoredAccount,
     pub label: String,
+    pub product: String, 
 }
 
 impl Storable for Accounts {
