@@ -68,7 +68,7 @@ const HomeSidebar: React.FC<HomeSidebarProps> = ({
               setIsMobileNavOpen(false);
             }}
             Icon={WalletIcon}
-            text="Wallet Address Management"
+            text="Account Management"
           />
           <SidebarLink
             active={activeView === "transactions"}
