@@ -204,7 +204,7 @@ export function AddWalletForm() {
                 />
               </svg>
             ) : null}
-            {isAdding ? "Adding..." : "Add Wallet"}
+            {isAdding ? "Adding..." : "Add Account"}
           </Button>
         </div>
       </CardContent>
