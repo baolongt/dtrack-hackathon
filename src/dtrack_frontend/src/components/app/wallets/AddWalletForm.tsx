@@ -145,36 +145,34 @@ export function AddWalletForm() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Label
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Select value={label} onValueChange={(v) => setLabel(v)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a label" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {labels.length === 0 ? (
-                          <SelectItem value="__none" key="__none">
-                            No labels
-                          </SelectItem>
-                        ) : (
-                          labels.map((l) => (
-                            <SelectItem value={l} key={l}>
-                              {l}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="flex items-center justify-start gap-2 mb-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Label
+                  </label>
                   <AddLabelDialog onAdded={(newLabel) => {
                     if (!newLabel) return;
                     setLabels((p) => Array.from(new Set([...p, newLabel])));
                     setLabel(newLabel);
                   }} />
                 </div>
+                <Select value={label} onValueChange={(v) => setLabel(v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a label" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {labels.length === 0 ? (
+                      <SelectItem value="__none" key="__none">
+                        No labels
+                      </SelectItem>
+                    ) : (
+                      labels.map((l) => (
+                        <SelectItem value={l} key={l}>
+                          {l}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

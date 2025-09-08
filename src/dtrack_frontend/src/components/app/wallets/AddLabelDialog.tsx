@@ -9,6 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SquarePlus } from "lucide-react";
 // use native <label> element because there's no Label component in the UI folder
 import BackendService from "@/services/backend.service";
 
@@ -40,8 +41,8 @@ export default function AddLabelDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          New
+        <Button variant="ghost" size="sm" className="h-2 w-2">
+          <SquarePlus/>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
@@ -59,7 +60,7 @@ export default function AddLabelDialog({
             id="label-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="e.g. Wallet-A"
+            placeholder="e.g. Main Account"
           />
         </div>
         <DialogFooter>
