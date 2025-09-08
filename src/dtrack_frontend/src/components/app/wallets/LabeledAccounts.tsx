@@ -30,9 +30,9 @@ export function LabeledAccounts() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Wallet address management</CardTitle>
+          <CardTitle>Account management</CardTitle>
           <CardDescription>
-            Manage your wallets and their current status
+            Manage your accounts and their current status
           </CardDescription>
         </CardHeader>
 

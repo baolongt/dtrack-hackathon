@@ -79,9 +79,9 @@ export function AddWalletForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add New Wallet</CardTitle>
+        <CardTitle>Add New Account</CardTitle>
         <CardDescription>
-          Track a new wallet for monitoring transactions and balance
+          Track a new account for monitoring transactions and balance
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -11,7 +11,7 @@ export const ROUTE_VIEW_MAP: Record<string, string> = {
 
 export const VIEW_TITLES: Record<string, string> = {
     home: "Dashboard Overview",
-    wallet: "Wallet Address Management",
+    wallet: "Account Management",
     transactions: "Transaction Dashboard",
     financial_report: "Financial Report",
     market_report: "Market Reports",
