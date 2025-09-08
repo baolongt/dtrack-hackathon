@@ -55,8 +55,11 @@ The backend consists of:
 just build
 just dfx_local_deploy
 
+
+# start the frontend
+npm run start
 # stop the local deployment
-# just stop
+# just dfx_local_stop
 # clean the build
 # just clean
 ```
