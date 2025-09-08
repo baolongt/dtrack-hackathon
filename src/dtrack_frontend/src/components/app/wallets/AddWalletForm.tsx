@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AddLabelDialog from "./AddLabelDialog";
+import AddProductDialog from "./AddProductDialog";
 import BackendService from "@/services/backend.service";
 
 export function AddWalletForm() {
@@ -28,6 +29,7 @@ export function AddWalletForm() {
   );
   // labels loaded from backend
   const [labels, setLabels] = React.useState<string[]>([]);
+  const [products, setProducts] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -41,6 +43,15 @@ export function AddWalletForm() {
         if (Array.isArray(res)) out = res;
         else if (res && typeof res === "object" && (res as any).Ok) out = (res as any).Ok;
         setLabels(out || []);
+        // initialize products from existing labeledAccounts in the store
+        try {
+          const prods = (labeledAccounts || [])
+            .map((a: any) => (a && a.product ? String(a.product) : ""))
+            .filter(Boolean);
+          if (mounted) setProducts(Array.from(new Set(prods)));
+        } catch (e) {
+          // ignore
+        }
       } catch (e) {
         console.warn("Failed to load labels", e);
       }
@@ -55,20 +66,22 @@ export function AddWalletForm() {
     "principal"
   );
   const [label, setLabel] = React.useState("");
+  const [product, setProduct] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
 
   const handleAdd = async () => {
-    if (!idValue || !label) return;
+    if (!idValue || !label || !product) return;
     setIsAdding(true);
     try {
       // call the appropriate store method depending on input type
       if (mode === "offchain") {
-        await useAccountStore.getState().addOffchainAccount(idValue, label);
+        await useAccountStore.getState().addOffchainAccount(idValue, label, product);
       } else {
-        await addAccount(idValue, label);
+        await addAccount(idValue, label, product);
       }
       setIdValue("");
       setLabel("");
+      setProduct("");
     } catch (e) {
       alert("Failed to add wallet: " + e);
     } finally {
@@ -125,7 +138,7 @@ export function AddWalletForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   {mode === "principal" ? "Principal ID" : "Account ID"}
@@ -141,38 +154,64 @@ export function AddWalletForm() {
                       ? "example-offchain-id"
                       : "706d348819f5b7316d497da5c9b3aae2816ffebe01943827f6e66839fcb64641"
                   }
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"
+                  className="w-full h-10 px-3 border border-input bg-background rounded-md text-sm font-mono"
                 />
               </div>
+
               <div>
                 <div className="flex items-center justify-start gap-2 mb-2">
-                  <label className="text-sm font-medium text-foreground">
-                    Label
-                  </label>
-                  <AddLabelDialog onAdded={(newLabel) => {
-                    if (!newLabel) return;
-                    setLabels((p) => Array.from(new Set([...p, newLabel])));
-                    setLabel(newLabel);
-                  }} />
+                  <label className="text-sm font-medium text-foreground">Label</label>
+                  <AddLabelDialog
+                    onAdded={(newLabel) => {
+                      if (!newLabel) return;
+                      setLabels((p) => Array.from(new Set([...p, newLabel])));
+                      setLabel(newLabel);
+                    }}
+                  />
                 </div>
                 <Select value={label} onValueChange={(v) => setLabel(v)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-10">
                     <SelectValue placeholder="Select a label" />
                   </SelectTrigger>
                   <SelectContent>
                     {labels.length === 0 ? (
-                      <SelectItem value="__none" key="__none">
-                        No labels
-                      </SelectItem>
+                      <SelectItem value="__none" key="__none">No labels</SelectItem>
                     ) : (
                       labels.map((l) => (
-                        <SelectItem value={l} key={l}>
-                          {l}
-                        </SelectItem>
+                        <SelectItem value={l} key={l}>{l}</SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-start gap-2 mb-2">
+                  <label className="text-sm font-medium text-foreground">Product</label>
+                  <AddProductDialog
+                    onAdded={(newProduct) => {
+                      if (!newProduct) return;
+                      setProducts((p) => Array.from(new Set([...p, newProduct])));
+                      setProduct(newProduct);
+                    }}
+                  />
+                </div>
+                <div className="mt-2">
+                  <Select value={product} onValueChange={(v) => setProduct(v)}>
+                    <SelectTrigger className="w-full h-10">
+                      <SelectValue placeholder="Select a product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.length === 0 ? (
+                        <SelectItem value="__none" key="__none">No products</SelectItem>
+                      ) : (
+                        products.map((p) => (
+                          <SelectItem value={p} key={p}>{p}</SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>

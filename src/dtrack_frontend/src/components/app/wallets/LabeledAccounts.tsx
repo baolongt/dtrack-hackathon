@@ -47,6 +47,7 @@ export function LabeledAccounts() {
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-foreground">
                       {labeledAcc.label}
+                      <span className="ml-3 text-sm font-normal text-muted-foreground">{(labeledAcc as any).product}</span>
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
