@@ -1,36 +1,49 @@
 type Account = record { owner : principal; subaccount : opt blob };
-type CreateLabeledAccountRequest = record { label : text; account : Account; product: text };
-type LabeledAccount = record { label : text; account : Account };
-type Result = variant { Ok : LabeledAccount; Err : text };
-type Result_1 = variant { Ok; Err : text };
-type Result_2 = variant { Ok : vec LabeledAccount; Err : text };
-type TransactionId = nat64;
-type TransactionLabel = text;
-type LabeledTransaction = record { id : TransactionId; label : TransactionLabel };
-type SetTransactionLabelRequest = record {
-  transaction_id : TransactionId;
-  label : TransactionLabel;
+type CreateCustomTransactionRequest = record {
+  transaction : CustomTransaction;
 };
-type Result_3 = variant { Ok : vec LabeledTransaction; Err : text };
+type CreateLabeledAccountRequest = record {
+  label : text;
+  account : StoredAccount;
+  product : text;
+};
 type CustomTransaction = record {
   id : text;
   timestamp_ms : nat64;
-  label : TransactionLabel;
+  label : text;
+  account : StoredAccount;
   amount : nat64;
 };
-type CreateCustomTransactionRequest = record { transaction : CustomTransaction };
-type Result_4 = variant { Ok : text; Err : text };
-type Result_5 = variant { Ok : vec CustomTransaction; Err : text };
+type LabeledAccount = record {
+  label : text;
+  account : StoredAccount;
+  product : text;
+};
+type Result = variant { Ok; Err : text };
+type Result_1 = variant { Ok : text; Err : text };
+type Result_2 = variant { Ok : LabeledAccount; Err : text };
+type Result_3 = variant { Ok : vec CustomTransaction; Err : text };
+type Result_4 = variant { Ok : vec LabeledAccount; Err : text };
+type Result_5 = variant { Ok : vec TransactionLabelRecord; Err : text };
+type SetTransactionLabelRequest = record {
+  transaction_id : nat64;
+  label : text;
+};
+type StoredAccount = variant { Offchain : text; Icrc1 : Account };
+type TransactionLabelRecord = record { id : nat64; label : text };
 service : {
-  create_labeled_account : (CreateLabeledAccountRequest) -> (Result);
-  delete_labeled_account : (Account) -> (Result_1);
-  get_labeled_accounts : () -> (Result_2) query;
-  update_labeled_account : (LabeledAccount) -> (Result_1);
-  get_transaction_labels : () -> (Result_3);
-  set_transaction_label : (SetTransactionLabelRequest) -> (Result_1);
-
-  create_custom_transaction : (CreateCustomTransactionRequest) -> (Result_4);
-  get_custom_transactions : () -> (Result_5) query;
-  update_custom_transaction : (CustomTransaction) -> (Result_1);
-  delete_custom_transaction : (text) -> (Result_1);
+  add_label : (text) -> (Result);
+  add_product : (text) -> (Result);
+  create_custom_transaction : (CreateCustomTransactionRequest) -> (Result_1);
+  create_labeled_account : (CreateLabeledAccountRequest) -> (Result_2);
+  delete_custom_transaction : (text) -> (Result);
+  delete_labeled_account : (StoredAccount) -> (Result);
+  get_custom_transactions : () -> (Result_3) query;
+  get_labeled_accounts : () -> (Result_4) query;
+  get_labels : () -> (vec text);
+  get_products : () -> (vec text);
+  get_transaction_labels : () -> (Result_5);
+  set_transaction_label : (SetTransactionLabelRequest) -> (Result);
+  update_custom_transaction : (CustomTransaction) -> (Result);
+  update_labeled_account : (LabeledAccount) -> (Result);
 }

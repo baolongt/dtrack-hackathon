@@ -21,6 +21,7 @@ pub struct CreateLabeledAccountRequest {
 pub struct UpdateLabeledAccountRequest {
     pub account: StoredAccount,
     pub label: String,
+    pub product: String,
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -86,11 +87,16 @@ pub fn update_labeled_account(request: UpdateLabeledAccountRequest) -> Result<()
         return Err("Invalid label".to_string());
     }
 
+    if !validate_product(&request.product) {
+        return Err("Invalid product".to_string());
+    }
+
     let mut saved_account = match get_account(&msg_caller(), &request.account.clone()){
         Some(acc) => acc, 
         None => return Err("Account not found".to_string())
     };
     saved_account.label = request.label.trim().to_string();
+    saved_account.product = request.product.trim().to_string();
     
     update_account(&msg_caller(), saved_account)?;
 
@@ -164,4 +170,19 @@ pub fn add_label(label: String) -> Result<(), String> {
 pub fn get_labels() -> Vec<String> {
     let caller = msg_caller();
     crate::repository::get_labels(&caller)
+}
+
+#[ic_cdk::update]
+pub fn add_product(product: String) -> Result<(), String> {
+    if !validate_product(&product) {
+        return Err("Invalid product".to_string());
+    }
+
+    crate::repository::add_product(&msg_caller(), product.trim().to_string())
+}
+
+#[ic_cdk::update]
+pub fn get_products() -> Vec<String> {
+    let caller = msg_caller();
+    crate::repository::get_products(&caller)
 }

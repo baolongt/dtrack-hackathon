@@ -8,7 +8,7 @@ use ic_stable_structures::{
 use std::cell::RefCell;
 
 use crate::types::{
-    Accounts, CustomTransaction, CustomTransactions, LabelList, LabeledAccount, StoredAccount,
+    Accounts, CustomTransaction, CustomTransactions, LabelList, LabeledAccount, ProductList, StoredAccount,
     TransactionLabelRecord, TxLabels,
 };
 
@@ -37,7 +37,13 @@ thread_local! {
 
     pub static USER_LABEL: RefCell<StableBTreeMap<Principal, LabelList, Memory>> = RefCell::new(
         StableBTreeMap::init(
-            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(2)))
+            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(3)))
+        )
+    );
+
+    pub static USER_PRODUCT: RefCell<StableBTreeMap<Principal, ProductList, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(4)))
         )
     );
 }
@@ -259,4 +265,24 @@ pub fn add_label(principal: &Principal, label: String) -> Result<(), String> {
 
 pub fn get_labels(principal: &Principal) -> Vec<String> {
     USER_LABEL.with_borrow(|ul| ul.get(principal).map_or_else(|| vec![], |entry| entry.0))
+}
+
+pub fn add_product(principal: &Principal, product: String) -> Result<(), String> {
+    USER_PRODUCT.with_borrow_mut(|up| {
+        let mut entry = up.get(principal).unwrap_or_else(|| ProductList(vec![]));
+        if entry.0.len() >= 50 {
+            return Err("Maximum number of products reached".to_string());
+        }
+        if !entry.0.contains(&product) {
+            entry.0.push(product);
+            up.insert(principal.clone(), entry);
+            Ok(())
+        } else {
+            return Err("Product already exists".to_string());
+        }
+    })
+}
+
+pub fn get_products(principal: &Principal) -> Vec<String> {
+    USER_PRODUCT.with_borrow(|up| up.get(principal).map_or_else(|| vec![], |entry| entry.0))
 }
