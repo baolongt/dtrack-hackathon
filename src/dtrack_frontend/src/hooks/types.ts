@@ -4,6 +4,7 @@ import { StoredAccount } from "../../../declarations/dtrack_backend/dtrack_backe
 export interface LabeledAccount {
     account: StoredAccount;
     label: string;
+    product: string;
     balance: number;
     transactions: Transaction[];
 }
@@ -11,6 +12,7 @@ export interface LabeledAccount {
 export interface ICRC1Account {
     account: { 'Icrc1': Account };
     label: string;
+    product: string;
     balance: number;
     transactions: Transaction[];
 }
@@ -18,6 +20,7 @@ export interface ICRC1Account {
 export interface OffchainAccount {
     account: { 'Offchain': string };
     label: string;
+    product: string;
     balance: number;
     transactions: Transaction[];
 }

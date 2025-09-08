@@ -8,6 +8,7 @@ import {
 import useAccountStore from "@/stores/account.store";
 import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import AddWalletForm from "./AddWalletForm";
 import { toIcrcAccount, truncateAccount, truncatePrincipal } from "@/lib/utils";
 import { useShallow } from "zustand/shallow";
@@ -47,7 +48,11 @@ export function LabeledAccounts() {
                   <div className="flex items-center gap-3">
                     <h3 className="font-semibold text-foreground">
                       {labeledAcc.label}
-                      <span className="ml-3 text-sm font-normal text-muted-foreground">{(labeledAcc as any).product}</span>
+                        {(labeledAcc as any).product ? (
+                          <Badge variant="secondary" className="ml-3">
+                            {(labeledAcc as any).product}
+                          </Badge>
+                        ) : null}
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">

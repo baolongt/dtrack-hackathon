@@ -78,6 +78,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             const labeled: LabeledAccount[] = res.map((item) => ({
                 account: item.account,
                 label: item.label,
+                product: item.product || '',
                 balance: 0,
                 transactions: [],
             }))
