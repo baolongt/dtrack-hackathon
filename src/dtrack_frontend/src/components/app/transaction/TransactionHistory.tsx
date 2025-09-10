@@ -63,6 +63,16 @@ export function TransactionHistory() {
   const [fromDate, setFromDate] = useState<string | undefined>(undefined);
   const [toDate, setToDate] = useState<string | undefined>(undefined);
   const [txType, setTxType] = useState<string>("All");
+  const [productFilter, setProductFilter] = useState<string>("All");
+  const [accountTypeFilter, setAccountTypeFilter] = useState<string>("All");
+
+  const productOptions = useMemo(() => {
+    const set = new Set<string>();
+    (labeledAccounts || []).forEach((a) => {
+      if (a.product) set.add(a.product);
+    });
+    return Array.from(set);
+  }, [labeledAccounts]);
 
   const filteredTransactions = useMemo(() => {
     const fromMs = fromDate ? new Date(fromDate).getTime() : undefined;
@@ -86,9 +96,29 @@ export function TransactionHistory() {
       if (txType && txType !== "All") {
         if ((t.label || "") !== txType) return false;
       }
+      // find account mapping for product / account type filters
+      const acc = labeledAccounts?.find((a) => {
+        return (
+          a.label === t.account ||
+          (a.account && typeof a.account === "object" &&
+            "Offchain" in (a.account as any) &&
+            (a.account as any).Offchain === t.account)
+        );
+      });
+
+      // filter by product
+      if (productFilter && productFilter !== "All") {
+        if (!acc || acc.product !== productFilter) return false;
+      }
+
+      // filter by account type (On-chain / Off-chain)
+      if (accountTypeFilter && accountTypeFilter !== "All") {
+        const acctType = acc && acc.account && typeof acc.account === "object" && "Offchain" in (acc.account as any) ? "Off-chain" : "On-chain";
+        if (!acc || acctType !== accountTypeFilter) return false;
+      }
       return true;
     });
-  }, [transactions, fromDate, toDate, txType]);
+  }, [transactions, fromDate, toDate, txType, productFilter, accountTypeFilter, labeledAccounts]);
 
   return (
     <div className="w-full space-y-6">
@@ -174,6 +204,51 @@ export function TransactionHistory() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="flex flex-col gap-3">
+              <label className="px-1 text-sm">Product</label>
+              <Select
+                value={productFilter}
+                onValueChange={(v) => setProductFilter(v)}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All" key="All">
+                    All
+                  </SelectItem>
+                  {productOptions.map((p) => (
+                    <SelectItem value={p} key={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <label className="px-1 text-sm">Type</label>
+              <Select
+                value={accountTypeFilter}
+                onValueChange={(v) => setAccountTypeFilter(v)}
+              >
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All" key="All">
+                    All
+                  </SelectItem>
+                  <SelectItem value="On-chain" key="onchain">
+                    On-chain
+                  </SelectItem>
+                  <SelectItem value="Off-chain" key="offchain">
+                    Off-chain
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="ml-auto">
               <Button
                 variant="ghost"
@@ -182,6 +257,8 @@ export function TransactionHistory() {
                   setFromDate(undefined);
                   setToDate(undefined);
                   setTxType("All");
+                  setProductFilter("All");
+                  setAccountTypeFilter("All");
                 }}
               >
                 Clear filters
