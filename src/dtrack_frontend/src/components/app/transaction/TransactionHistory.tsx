@@ -40,6 +40,7 @@ import { TX_LABELS } from "@/lib/const";
 export function TransactionHistory() {
   const {
     transactions,
+  labeledAccounts,
     editingTx,
     setEditingTx,
     isSaving,
@@ -191,112 +192,136 @@ export function TransactionHistory() {
           <Table className="table-fixed">
             <TableCaption>A list of your recent transactions.</TableCaption>
             <TableHeader>
-              <TableRow className="h-13">
+                <TableRow className="h-13">
                 <TableHead className="w-[140px]">Transaction ID</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Account Name</TableHead>
+                <TableHead>Account</TableHead>
+                <TableHead className="w-[140px]">Product</TableHead>
+                <TableHead className="w-[120px]">Type</TableHead>
                 <TableHead style={{ width: "240px" }}>Label</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTransactions.map((transaction) => (
-                <TableRow key={transaction.id} className="h-13">
-                  <TableCell
-                    className="font-mono text-sm font-medium truncate"
-                    title={transaction.id}
-                  >
-                    {transaction.id}
-                  </TableCell>
-                  <TableCell>
-                    {transaction.timestamp_ms
-                      ? new Date(transaction.timestamp_ms).toLocaleString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {transaction.amount < 0
-                      ? `-${currency.format(
-                          Math.abs(Number(transaction.amount))
-                        )}`
-                      : currency.format(Number(transaction.amount))}
-                  </TableCell>
-                  <TableCell className="font-bold">
-                    <Badge variant="default">{transaction.account}</Badge>
-                  </TableCell>
+              {filteredTransactions.map((transaction) => {
+                const acc = labeledAccounts?.find((a) => {
+                  return (
+                    a.label === transaction.account ||
+                    (a.account && typeof a.account === "object" &&
+                      "Offchain" in (a.account as any) &&
+                      (a.account as any).Offchain === transaction.account)
+                  );
+                });
+                const product = acc?.product || "";
+                const accountType = acc && acc.account && typeof acc.account === "object" && "Offchain" in (acc.account as any) ? "Off-chain" : "On-chain";
 
-                  <TableCell className="w-[220px]">
-                    {editingTx && editingTx.id === transaction.id ? (
-                      <div className="flex gap-1 items-center">
-                        <Select
-                          value={editingTx.label}
-                          onValueChange={(v) =>
-                            setEditingTx({ ...editingTx, label: v })
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {TX_LABELS.map((l) => (
-                              <SelectItem value={l} key={l}>
-                                {l}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleSave}
-                          disabled={isSaving}
-                        >
-                          {isSaving && (
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          )}
-                          Save
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleCancel}
-                          disabled={isSaving}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div
-                          onClick={() =>
-                            setEditingTx({
-                              id: transaction.id,
-                              label: transaction.label,
-                              isCustom: transaction.isCustom,
-                            })
-                          }
-                          className="flex-1 flex items-center gap-2 cursor-pointer truncate"
-                          title={transaction.label}
-                        >
-                          <span className="truncate">{transaction.label}</span>
-                          <Edit className="h-4 w-4 text-gray-500" />
-                        </div>
+                return (
+                  <TableRow key={transaction.id} className="h-13">
+                    <TableCell
+                      className="font-mono text-sm font-medium truncate"
+                      title={transaction.id}
+                    >
+                      {transaction.id}
+                    </TableCell>
+                    <TableCell>
+                      {transaction.timestamp_ms
+                        ? new Date(transaction.timestamp_ms).toLocaleString()
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {transaction.amount < 0
+                        ? `-${currency.format(
+                            Math.abs(Number(transaction.amount))
+                          )}`
+                        : currency.format(Number(transaction.amount))}
+                    </TableCell>
 
-                        {transaction.isCustom ? (
+                    <TableCell className="font-bold">
+                      <Badge variant="default">{transaction.account}</Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      {product ? <Badge variant="secondary">{product}</Badge> : "—"}
+                    </TableCell>
+
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">{acc ? accountType : "—"}</span>
+                    </TableCell>
+
+                    <TableCell className="w-[220px]">
+                      {editingTx && editingTx.id === transaction.id ? (
+                        <div className="flex gap-1 items-center">
+                          <Select
+                            value={editingTx.label}
+                            onValueChange={(v) =>
+                              setEditingTx({ ...editingTx, label: v })
+                            }
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TX_LABELS.map((l) => (
+                                <SelectItem value={l} key={l}>
+                                  {l}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSave}
+                            disabled={isSaving}
+                          >
+                            {isSaving && (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            )}
+                            Save
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteCustom(transaction.id)}
+                            onClick={handleCancel}
                             disabled={isSaving}
-                            className="ml-2"
                           >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            Cancel
                           </Button>
-                        ) : null}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div
+                            onClick={() =>
+                              setEditingTx({
+                                id: transaction.id,
+                                label: transaction.label,
+                                isCustom: transaction.isCustom,
+                              })
+                            }
+                            className="flex-1 flex items-center gap-2 cursor-pointer truncate"
+                            title={transaction.label}
+                          >
+                            <span className="truncate">{transaction.label}</span>
+                            <Edit className="h-4 w-4 text-gray-500" />
+                          </div>
+
+                          {transaction.isCustom ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteCustom(transaction.id)}
+                              disabled={isSaving}
+                              className="ml-2"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          ) : null}
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
