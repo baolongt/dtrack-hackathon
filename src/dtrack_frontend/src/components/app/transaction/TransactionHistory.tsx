@@ -195,7 +195,7 @@ export function TransactionHistory() {
                 <TableHead className="w-[140px]">Transaction ID</TableHead>
                 <TableHead>Time</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Account</TableHead>
+                <TableHead>Account Name</TableHead>
                 <TableHead style={{ width: "240px" }}>Label</TableHead>
               </TableRow>
             </TableHeader>
