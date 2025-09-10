@@ -59,6 +59,10 @@ export function TransactionHistory() {
     fetchAll,
   } = useTransactionHistory();
 
+  const offchainAccounts = (labeledAccounts || []).
+    filter((a) => a.account && typeof a.account === "object" && "Offchain" in (a.account as any)).
+    map((a) => ({ id: (a.account as any).Offchain, name: a.label, productTag: a.product }));
+
   // Filters
   const [fromDate, setFromDate] = useState<string | undefined>(undefined);
   const [toDate, setToDate] = useState<string | undefined>(undefined);
@@ -175,6 +179,7 @@ export function TransactionHistory() {
                 setNewTx={setNewTx}
                 isCreating={isCreating}
                 onCreate={handleCreate}
+                accounts={offchainAccounts}
               />
             </div>
           </div>

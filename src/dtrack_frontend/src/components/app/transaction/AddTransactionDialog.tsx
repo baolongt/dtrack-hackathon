@@ -23,6 +23,7 @@ type NewTx = {
   label: string;
   amount: string;
   account?: string;
+  productTag?: string;
 };
 
 export default function AddTransactionDialog({
@@ -30,11 +31,13 @@ export default function AddTransactionDialog({
   setNewTx,
   isCreating,
   onCreate,
+  accounts,
 }: {
   newTx: NewTx;
   setNewTx: (v: NewTx) => void;
   isCreating: boolean;
   onCreate: (e?: React.FormEvent) => Promise<void>;
+  accounts: { id: string; name: string; productTag: string }[];
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -45,8 +48,8 @@ export default function AddTransactionDialog({
     try {
       await onCreate();
       setOpen(false);
-      // reset form handled by caller (hook) but keep fallback
-      setNewTx({ date: "", label: "", amount: "" });
+  // reset form handled by caller (hook) but keep fallback
+  setNewTx({ date: "", label: "", amount: "", account: "", productTag: "" });
     } catch (err) {
       // onCreate already handles errors/alerts; keep dialog open on error
     }
@@ -111,6 +114,38 @@ export default function AddTransactionDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="flex flex-col w-full">
+            <label className="text-xs text-muted-foreground mb-1">Account</label>
+            <Select
+              value={newTx.account}
+              onValueChange={(v) => {
+                const acct = accounts.find((a) => a.id === v) ?? null;
+                setNewTx({ ...newTx, account: v, productTag: acct ? acct.productTag : "" });
+              }}
+            >
+              <SelectTrigger className="w-full h-9">
+                <SelectValue placeholder="Select an account" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.map((a) => (
+                  <SelectItem value={a.id} key={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col w-full">
+            <label className="text-xs text-muted-foreground mb-1">Product Tag</label>
+            <Input
+              value={newTx.productTag || ""}
+              readOnly
+              className="w-full py-1 bg-muted/10"
+              placeholder="Auto-populated from selected account"
+            />
           </div>
 
           <div className="flex justify-end gap-2 mt-1">
