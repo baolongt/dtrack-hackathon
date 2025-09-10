@@ -160,9 +160,9 @@ export function AddWalletForm() {
 
               <div>
                 <div className="flex items-center justify-start gap-2 mb-2">
-                  <label className="text-sm font-medium text-foreground">Label</label>
+                  <label className="text-sm font-medium text-foreground">Name</label>
                   <AddLabelDialog
-                    onAdded={(newLabel) => {
+                    onAdded={(newLabel) => {  
                       if (!newLabel) return;
                       setLabels((p) => Array.from(new Set([...p, newLabel])));
                       setLabel(newLabel);
@@ -171,11 +171,11 @@ export function AddWalletForm() {
                 </div>
                 <Select value={label} onValueChange={(v) => setLabel(v)}>
                   <SelectTrigger className="w-full h-10">
-                    <SelectValue placeholder="Select a label" />
+                    <SelectValue placeholder="Select a name" />
                   </SelectTrigger>
                   <SelectContent>
                     {labels.length === 0 ? (
-                      <SelectItem value="__none" key="__none">No labels</SelectItem>
+                      <SelectItem value="__none" key="__none">No names</SelectItem>
                     ) : (
                       labels.map((l) => (
                         <SelectItem value={l} key={l}>{l}</SelectItem>
