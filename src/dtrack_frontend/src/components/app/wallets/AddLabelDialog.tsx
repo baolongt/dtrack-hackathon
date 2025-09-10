@@ -47,14 +47,14 @@ export default function AddLabelDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add Label</DialogTitle>
+          <DialogTitle>Add Name</DialogTitle>
         </DialogHeader>
         <div className="grid gap-2">
           <label
             className="text-sm font-medium text-foreground"
             htmlFor="label-input"
           >
-            Label
+            Name
           </label>
           <Input
             id="label-input"
