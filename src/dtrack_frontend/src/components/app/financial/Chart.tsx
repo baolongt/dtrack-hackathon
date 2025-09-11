@@ -13,6 +13,13 @@ import {
 
 import { ChartConfig } from "@/components/ui/chart";
 import useAccountStore from "@/stores/account.store";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const description = "An interactive line chart";
 
@@ -41,7 +48,17 @@ export function TransactionDataChartLine() {
   const labeled = useAccountStore((s) => s.labeledAccounts);
   const storeTxs = labeled?.flatMap((acc) => acc.transactions || []) ?? [];
 
-  // map store transactions into a simplified shape { amount, date, type }
+  // product filter state
+  const [productFilter, setProductFilter] = React.useState("Allproducts");
+  
+  // compute unique product options from labeled accounts
+  const productOptions = React.useMemo(() => {
+    if (!labeled || labeled.length === 0) return [];
+    const products = new Set(labeled.map(acc => acc.product).filter(Boolean));
+    return Array.from(products).sort();
+  }, [labeled]);
+
+  // map store transactions into a simplified shape { amount, date, type, product }
   const transactions = React.useMemo(() => {
     return (storeTxs as any[]).map((t) => {
       const amount = Number(t.amount) || 0;
@@ -61,9 +78,31 @@ export function TransactionDataChartLine() {
       } else if (label === "refund") {
         type = "On-chain revenue";
       }
-      return { amount, date, type };
+      
+      // find the product for this transaction by matching account
+      let product = "";
+      if (labeled) {
+        const matchedAccount = labeled.find(acc => {
+          // Match transactions to accounts - this is a simplified matching
+          // In a real scenario, you'd want more robust account matching
+          return acc.transactions && acc.transactions.some(accTx => accTx.id === t.id);
+        });
+        if (matchedAccount) {
+          product = matchedAccount.product || "";
+        }
+      }
+      
+      return { amount, date, type, product };
     });
-  }, [storeTxs]);
+  }, [storeTxs, labeled]);
+
+  // filter transactions based on selected product
+  const filteredTransactions = React.useMemo(() => {
+    if (productFilter === "Allproducts") {
+      return transactions;
+    }
+    return transactions.filter(t => t.product === productFilter);
+  }, [transactions, productFilter]);
 
   const formatCurrency = (v: number) =>
     `$${v.toLocaleString(undefined, {
@@ -74,11 +113,11 @@ export function TransactionDataChartLine() {
   const { totalRevenue, netProfit, totalExpenses, revenueOverTimeData } =
     React.useMemo(() => {
       // --- Metric Calculations ---
-      const totalOnChainRevenue = transactions
+      const totalOnChainRevenue = filteredTransactions
         .filter((t) => t.type === "On-chain revenue")
         .reduce((sum, t) => sum + t.amount, 0);
 
-      const totalOffChainRevenue = transactions
+      const totalOffChainRevenue = filteredTransactions
         .filter(
           (t) => t.type === "On-chain grant" || t.type === "Off-chain revenue"
         )
@@ -86,7 +125,7 @@ export function TransactionDataChartLine() {
 
       const totalRevenue = totalOnChainRevenue + totalOffChainRevenue;
 
-      const totalExpenses = transactions
+      const totalExpenses = filteredTransactions
         .filter(
           (t) =>
             t.type === "On-chain payment" || t.type === "Off-chain expenses"
@@ -118,7 +157,7 @@ export function TransactionDataChartLine() {
         999
       );
 
-      transactions.forEach((t) => {
+      filteredTransactions.forEach((t) => {
         const txDate = new Date(t.date);
         if (txDate >= start && txDate <= end) {
           const monthName = txDate.toLocaleString("default", {
@@ -144,17 +183,37 @@ export function TransactionDataChartLine() {
       });
 
       return { totalRevenue, netProfit, totalExpenses, revenueOverTimeData };
-    }, [transactions]);
+    }, [filteredTransactions]);
 
   return (
     <div className="rounded-xl border bg-card text-card-foreground shadow">
       <div className="p-6">
-        <h3 className="tracking-tight text-lg font-medium">
-          Total Revenue Over Time
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          A summary of your total revenue over the last 6 months.
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="tracking-tight text-lg font-medium">
+              Total Revenue Over Time
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              A summary of your total revenue over the last 6 months.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Product:</span>
+            <Select value={productFilter} onValueChange={setProductFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Allproducts">All products</SelectItem>
+                {productOptions.map((product) => (
+                  <SelectItem key={product} value={product}>
+                    {product}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
       <div className="p-6 pt-0">
         <div className="h-[350px]">
