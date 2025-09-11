@@ -80,12 +80,14 @@ export function TransactionDataChartLine() {
       }
       
       // find the product for this transaction by matching account
+      // First try to match by transaction ID, then fall back to account matching
       let product = "";
       if (labeled) {
         const matchedAccount = labeled.find(acc => {
-          // Match transactions to accounts - this is a simplified matching
-          // In a real scenario, you'd want more robust account matching
-          return acc.transactions && acc.transactions.some(accTx => accTx.id === t.id);
+          if (acc.transactions && acc.transactions.length > 0) {
+            return acc.transactions.some(accTx => accTx.id === t.id);
+          }
+          return false;
         });
         if (matchedAccount) {
           product = matchedAccount.product || "";
