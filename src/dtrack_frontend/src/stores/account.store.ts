@@ -3,7 +3,7 @@ import { ICRC1Account, LabeledAccount, Transaction } from '../hooks/types'
 import BackendService from '../services/backend.service'
 import LedgerService from '../services/ledger.service'
 import IndexService from '../services/index.service'
-import { mockIndexTransactions, mockCustomTransactions } from './mock'
+
 import { Account } from '@dfinity/ledger-icp'
 import { decodeIcrcAccount, encodeIcrcAccount } from '@dfinity/ledger-icrc'
 import { toNullable } from '@dfinity/utils'
@@ -193,6 +193,25 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         if (!accounts || accounts.length === 0) return
         set({ isLoadingIndex: true, error: null })
         try {
+            // fetch any user-set transaction labels so we can apply them to index results
+            let labelMap: Record<string, string> = {}
+            try {
+                const labelsResAny: any = await backendService.getTransactionLabels()
+                if (labelsResAny && Array.isArray(labelsResAny)) {
+                    labelsResAny.forEach((rec: any) => {
+                        try {
+                            labelMap[String(rec.id)] = rec.label
+                        } catch {}
+                    })
+                } else if (labelsResAny && typeof labelsResAny === 'object' && 'Ok' in labelsResAny) {
+                    for (const rec of labelsResAny.Ok) {
+                        try { labelMap[String(rec.id)] = rec.label } catch {}
+                    }
+                }
+            } catch (e) {
+                // ignore label fetch errors; we'll proceed without custom labels
+                labelMap = {}
+            }
             // Build per-account tasks, await them, then assemble txMap from results
             const tasks = accounts.map(async (acc: LabeledAccount) => {
                 // Only Icrc1 accounts can be queried from the index/ledger
@@ -207,7 +226,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                     const res = await indexService!.getAccountTransactions(inner, 100);
                     const transactions = res.transactions;
 
-                    const temp: Transaction[] = transactions.map((indexTx) => {
+                    let temp: Transaction[] = transactions.map((indexTx) => {
                         const res = convertIndexTxToFrontend(
                             indexTx,
                             acc.label,
@@ -215,17 +234,21 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                             ledger_id
                         )
                         return res;
-                    }).filter((tx) => tx !== null) as Transaction[] // filter out nulls;
+                    }).filter((tx) => tx !== null) as Transaction[]
 
-                    const mock_tx = mockIndexTransactions(acc.label, ledger_id, 200);
-                    const new_temp = temp.concat(mock_tx);
+                    // apply any user-set labels fetched earlier (labelMap keyed by string id)
+                    temp = temp.map((tx) => {
+                        if (!tx) return tx
+                        const mapped = labelMap[String(tx.id)]
+                        if (mapped && mapped !== tx.label) return { ...tx, label: mapped }
+                        return tx
+                    })
 
-                    const txsToUse = (temp.length === 0) ? mockIndexTransactions(account_str, ledger_id, 200) : new_temp
-                    return { key: account_str, txs: txsToUse }
+                    return { key: account_str, txs: temp }
                 } catch (err) {
                     console.error(`Failed to fetch transactions for account ${account_str}:`, err)
-                    // on error, fall back to deterministic mocks
-                    return { key: account_str, txs: mockIndexTransactions(account_str, ledger_id, 200) }
+                    // on error, return empty transaction list for this account
+                    return { key: account_str, txs: [] }
                 }
             })
 
@@ -370,14 +393,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         const backendService = BackendService.getInstance(get().identity || undefined)
         try {
             const custom = await backendService.getCustomTransactions();
-            const raw = (custom || [])
-            const fallback = raw.length === 0 ? mockCustomTransactions(undefined, 30) : []
-            const customTxs: Transaction[] = (raw.length === 0 ? fallback : raw).map((c: any) => {
-                // map StoredAccount -> display string
+            const raw = Array.isArray(custom) ? custom : []
+            const customTxs: Transaction[] = raw.map((c: any) => {
                 let accountStr = 'custom'
-                // if using fallback mocks, shape is already Transaction
-                if (raw.length === 0) return c as Transaction
-
                 if (c.account) {
                     if (typeof c.account === 'object' && 'Offchain' in c.account) {
                         accountStr = c.account.Offchain
@@ -403,8 +421,8 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             set({ customTransactions: customTxs })
         } catch (e) {
             console.warn('fetchCustomAccount: failed to fetch custom transactions', e)
-            // on error use deterministic mocks
-            set({ customTransactions: mockCustomTransactions(undefined, 30) })
+            // on error clear custom transactions so UI only shows real data when available
+            set({ customTransactions: [] })
         }
     },
 

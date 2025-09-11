@@ -16,9 +16,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import AddLabelDialog from "./AddLabelDialog";
 import AddProductDialog from "./AddProductDialog";
-import BackendService from "@/services/backend.service";
 
 export function AddWalletForm() {
   const { addAccount, labeledAccounts } = useAccountStore(
@@ -27,39 +25,23 @@ export function AddWalletForm() {
       labeledAccounts: s.labeledAccounts,
     }))
   );
-  // labels loaded from backend
-  const [labels, setLabels] = React.useState<string[]>([]);
   const [products, setProducts] = React.useState<string[]>([]);
-
   React.useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const svc = BackendService.getInstance();
-        const res = await svc.getLabels();
-        if (!mounted) return;
-        // normalize response to string[]
-        let out: string[] = [];
-        if (Array.isArray(res)) out = res;
-        else if (res && typeof res === "object" && (res as any).Ok) out = (res as any).Ok;
-        setLabels(out || []);
-        // initialize products from existing labeledAccounts in the store
-        try {
-          const prods = (labeledAccounts || [])
-            .map((a: any) => (a && a.product ? String(a.product) : ""))
-            .filter(Boolean);
-          if (mounted) setProducts(Array.from(new Set(prods)));
-        } catch (e) {
-          // ignore
-        }
+        const prods = (labeledAccounts || [])
+          .map((a: any) => (a && a.product ? String(a.product) : ""))
+          .filter(Boolean);
+        if (mounted) setProducts(Array.from(new Set(prods)));
       } catch (e) {
-        console.warn("Failed to load labels", e);
+        // ignore
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [labeledAccounts]);
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
   const [mode, setMode] = React.useState<"account" | "principal" | "offchain">(
@@ -159,30 +141,14 @@ export function AddWalletForm() {
               </div>
 
               <div>
-                <div className="flex items-center justify-start gap-2 mb-2">
-                  <label className="text-sm font-medium text-foreground">Name</label>
-                  <AddLabelDialog
-                    onAdded={(newLabel) => {  
-                      if (!newLabel) return;
-                      setLabels((p) => Array.from(new Set([...p, newLabel])));
-                      setLabel(newLabel);
-                    }}
-                  />
-                </div>
-                <Select value={label} onValueChange={(v) => setLabel(v)}>
-                  <SelectTrigger className="w-full h-10">
-                    <SelectValue placeholder="Select a name" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {labels.length === 0 ? (
-                      <SelectItem value="__none" key="__none">No names</SelectItem>
-                    ) : (
-                      labels.map((l) => (
-                        <SelectItem value={l} key={l}>{l}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium text-foreground mb-2 block">Name</label>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g. Main Account"
+                  className="w-full h-10 px-3 border border-input bg-background rounded-md text-sm"
+                />
               </div>
 
               <div>
