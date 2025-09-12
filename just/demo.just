@@ -1,6 +1,6 @@
 [group('demo')]
 demo iterations="" interval="":
-    #!/usr/bin/env sh
+    #!/usr/bin/env bash
     set -e
 
     iterations={{iterations}}

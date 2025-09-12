@@ -76,7 +76,7 @@ pub struct CustomTransaction {
     pub id: String,
     pub timestamp_ms: u64,
     pub label: String,
-    pub amount: u64,
+    pub amount: i64,
     pub account: StoredAccount,
 }
 

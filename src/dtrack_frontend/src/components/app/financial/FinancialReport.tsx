@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas-pro";
 import { Transaction } from "../../../hooks/types";
 import {
   SENT_LABEL,
@@ -29,6 +30,9 @@ import {
   ArrowDownIcon,
   DollarSign,
 } from "lucide-react";
+import useAccountStore from "@/stores/account.store";
+import { encodeIcrcAccount } from "@dfinity/ledger-icrc";
+import { toIcrcAccount } from "@/lib/utils";
 
 // Helper to format currency
 const formatCurrency = (value: number) =>
@@ -37,6 +41,67 @@ const formatCurrency = (value: number) =>
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
+
+// Helpers to convert CSS oklch() color strings to rgb(...) strings.
+const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const fromOklabToSRGB = (L: number, a: number, b: number) => {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l_3 = l_ * l_ * l_;
+  const m_3 = m_ * m_ * m_;
+  const s_3 = s_ * s_ * s_;
+  let r = 4.0767416621 * l_3 - 3.3077115913 * m_3 + 0.2309699292 * s_3;
+  let g = -1.2684380046 * l_3 + 2.6097574011 * m_3 - 0.3413193965 * s_3;
+  let b_lin = -0.0041960863 * l_3 - 0.7034186147 * m_3 + 1.707614701 * s_3;
+  const toSRGB = (c: number) => {
+    c = clamp(c);
+    if (c <= 0.0031308) return 12.92 * c;
+    return 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  };
+  r = toSRGB(r);
+  g = toSRGB(g);
+  b_lin = toSRGB(b_lin);
+  return [Math.round(clamp(r) * 255), Math.round(clamp(g) * 255), Math.round(clamp(b_lin) * 255)];
+};
+
+const parseOklch = (s: string) => {
+  try {
+    const inside = s.substring(s.indexOf("(") + 1, s.lastIndexOf(")"));
+    const parts = inside.replace(/\s+\/.*$/, "").trim().split(/\s+/);
+    if (parts.length < 3) return null;
+    let L = parts[0];
+    let C = parts[1];
+    let H = parts[2];
+    const parseNumber = (v: string) => {
+      if (v.endsWith("%")) return parseFloat(v) / 100;
+      return parseFloat(v);
+    };
+    const Lnum = parseNumber(L);
+    const Cnum = parseFloat(C);
+    let h = 0;
+    if (H.endsWith("deg")) h = (parseFloat(H) * Math.PI) / 180;
+    else if (H.endsWith("rad")) h = parseFloat(H);
+    else h = (parseFloat(H) * Math.PI) / 180;
+    const a = Cnum * Math.cos(h);
+    const b = Cnum * Math.sin(h);
+    const rgb = fromOklabToSRGB(Lnum, a, b);
+    return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+  } catch (e) {
+    return null;
+  }
+};
+
+const replaceOklchInString = (s: string) => {
+  try {
+    return s.replace(/oklch\([^)]*\)/g, (match) => {
+      const conv = parseOklch(match);
+      return conv || "rgb(0,0,0)";
+    });
+  } catch (e) {
+    return s;
+  }
+};
 
 const PercentageChange: React.FC<{ value: number }> = ({ value }) => {
   if (isNaN(value) || !isFinite(value)) {
@@ -85,6 +150,78 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
   const [frequencyTimeframe, setFrequencyTimeframe] = useState<
     "monthly" | "weekly"
   >("monthly");
+  // selected product tag for filtering charts/metrics. "Allproducts" shows everything
+  const [selectedTag, setSelectedTag] = useState<string>("allproducts");
+
+  const normalizeAccount = (s: any) => String(s || "").toLowerCase().trim();
+
+  // product tag options come from labeled accounts in the account store
+  const labeledAccounts = useAccountStore((s) => s.labeledAccounts);
+  const tagOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    (labeledAccounts || []).forEach((acc) => {
+      const p = (acc as any).product || "";
+      const key = String(p).toLowerCase().trim();
+      if (key && !map.has(key)) map.set(key, String(p));
+    });
+  return ["allproducts", ...Array.from(map.keys())].map((k) => ({ key: k, label: k === "allproducts" ? "All products" : map.get(k) || k }));
+  }, [labeledAccounts]);
+
+  // map product tag -> set of account strings (representative account identifiers used in tx.account)
+  const accountsByProduct = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    (labeledAccounts || []).forEach((acc) => {
+  const productRaw = (acc as any).product || "";
+  const product = String(productRaw).toLowerCase().trim();
+  if (!product) return;
+  if (!map[product]) map[product] = new Set<string>();
+      const txs = (acc as any).transactions || [];
+      if (Array.isArray(txs) && txs.length > 0) {
+        txs.forEach((tx: any) => {
+          if (tx && tx.account) map[product].add(normalizeAccount(tx.account));
+        });
+      } else {
+        const stored = (acc as any).account;
+        try {
+          if (stored && typeof stored === "object") {
+            if ("Offchain" in stored) {
+              map[product].add(normalizeAccount(stored.Offchain));
+            } else if ("Icrc1" in stored) {
+              const encoded = encodeIcrcAccount(toIcrcAccount(stored.Icrc1));
+              map[product].add(normalizeAccount(encoded));
+            }
+          }
+        } catch {
+          // ignore encoding errors
+        }
+      }
+  const label = (acc as any).label;
+  if (label) map[product].add(normalizeAccount(label));
+    });
+    return map;
+  }, [labeledAccounts]);
+
+
+  // filtered transactions used for computing metrics and charts
+  const filteredTransactions = useMemo(() => {
+  const sel = String(selectedTag).toLowerCase().trim();
+  if (sel === "allproducts") return transactions;
+    const accountsForTag = new Set<string>(
+      Array.from(accountsByProduct[sel] || [])
+    );
+    return transactions.filter((t) => {
+      const tag =
+        (t as any).product_tag ??
+        (t as any).productTag ??
+        (t as any).product ??
+        (t as any).tag ??
+        "";
+      if (tag && String(tag).toLowerCase() === sel) return true;
+      const accountNormalized = normalizeAccount((t as any).account);
+      if (accountNormalized && accountsForTag.has(accountNormalized)) return true;
+      return false;
+    });
+  }, [transactions, selectedTag, accountsByProduct]);
 
   const metrics = useMemo(() => {
     const now = new Date();
@@ -92,12 +229,12 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    const currentMonthTxs = transactions.filter(
+  const currentMonthTxs = filteredTransactions.filter(
       (t) =>
         new Date(t.timestamp_ms) >= currentMonthStart &&
         new Date(t.timestamp_ms) <= now
     );
-    const prevMonthTxs = transactions.filter(
+  const prevMonthTxs = filteredTransactions.filter(
       (t) =>
         new Date(t.timestamp_ms) >= prevMonthStart &&
         new Date(t.timestamp_ms) <= prevMonthEnd
@@ -172,10 +309,10 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       prevMetrics.netProfit
     );
 
-    const totalOnChainRevenue = transactions
+    const totalOnChainRevenue = filteredTransactions
       .filter((t) => !t.isCustom)
       .reduce((sum, t) => sum + t.amount, 0);
-    const totalOffChainRevenue = transactions
+    const totalOffChainRevenue = filteredTransactions
       .filter(
         (t) =>
           t.isCustom ||
@@ -184,7 +321,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       )
       .reduce((sum, t) => sum + t.amount, 0);
     const totalRevenue = totalOnChainRevenue + totalOffChainRevenue;
-    const totalExpenses = transactions
+    const totalExpenses = filteredTransactions
       .filter((t) => {
         const lbl = (t.label || "").toString().toLowerCase();
         return (
@@ -195,7 +332,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       })
       .reduce((sum, t) => sum + t.amount, 0);
     const netProfit = totalRevenue - totalExpenses;
-    const totalOnChainTransactions = transactions.filter(
+    const totalOnChainTransactions = filteredTransactions.filter(
       (t) => !t.isCustom
     ).length;
 
@@ -206,7 +343,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       revenueByMonth[monthName] = 0;
     }
 
-    transactions.forEach((t) => {
+  filteredTransactions.forEach((t) => {
       const txDate = new Date(t.timestamp_ms);
       if (
         txDate.getFullYear() === now.getFullYear() &&
@@ -230,7 +367,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       { name: "Off-Chain Revenue", value: totalOffChainRevenue },
     ];
 
-    const onChainRevenueTxs = transactions.filter(
+    const onChainRevenueTxs = filteredTransactions.filter(
       (t) => !t.isCustom && (t.amount || 0) > 0
     );
     const monthlyFrequency = onChainRevenueTxs.reduce((acc, t) => {
@@ -281,7 +418,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       monthlyFrequencyData,
       weeklyFrequencyData,
     };
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   const COLORS = ["hsl(222.2, 47.4%, 11.2%)", "hsl(173, 80%, 40%)"];
 
@@ -289,7 +426,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
     const headers = ["ID", "Date", "Type", "Label", "Amount", "Account"];
     const csvRows = [
       headers.join(","),
-      ...transactions.map((tx) =>
+      ...filteredTransactions.map((tx) =>
         [
           `"${tx.id}"`,
           `"${new Date(tx.timestamp_ms).toISOString()}"`,
@@ -312,28 +449,109 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
     document.body.removeChild(link);
   };
 
-  const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    autoTable(doc, {
-      head: [["ID", "Date", "Account", "Label", "Amount"]],
-      body: transactions.map((tx) => [
-        tx.id,
-        new Date(tx.timestamp_ms).toLocaleString(),
-        tx.account,
-        tx.label,
-        formatCurrency(tx.amount),
-      ]),
-      headStyles: { fillColor: [24, 38, 58] },
-      styles: { fontSize: 8, cellPadding: 2 },
-    });
-    doc.save("financial-report.pdf");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleDownloadPDF = async () => {
+    try {
+      if (!containerRef.current) return;
+      const element = containerRef.current;
+
+      const captureWithInlinedStyles = async (sourceEl: HTMLElement) => {
+        const clone = sourceEl.cloneNode(true) as HTMLElement;
+        const wrapper = document.createElement("div");
+        wrapper.style.position = "fixed";
+        wrapper.style.left = "-9999px";
+        wrapper.style.top = "0";
+        wrapper.style.width = `${sourceEl.scrollWidth}px`;
+        wrapper.style.height = `${sourceEl.scrollHeight}px`;
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
+
+        const applyComputedStyles = (orig: Element, copy: Element) => {
+          const cs = window.getComputedStyle(orig as Element);
+          for (let i = 0; i < cs.length; i++) {
+            const prop = cs[i];
+            try {
+              let val = cs.getPropertyValue(prop);
+              if (typeof val === "string") {
+                val = replaceOklchInString(val);
+              }
+              (copy as HTMLElement).style.setProperty(prop, val);
+            } catch (_) {
+              // ignore any properties that can't be set
+            }
+          }
+          const oChildren = orig.children || [];
+          const cChildren = copy.children || [];
+          for (let i = 0; i < oChildren.length; i++) {
+            if (cChildren[i]) applyComputedStyles(oChildren[i], cChildren[i]);
+          }
+        };
+
+        applyComputedStyles(sourceEl, clone);
+
+        const canvas = await html2canvas(clone as HTMLElement, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+        });
+        document.body.removeChild(wrapper);
+        return canvas;
+      };
+
+      const canvas = await captureWithInlinedStyles(element);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "pt", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+
+      const ratio = pdfWidth / imgWidth;
+      const imgHeightPDF = imgHeight * ratio;
+
+      let heightLeft = imgHeightPDF;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeightPDF);
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeightPDF;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeightPDF);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save("financial-report.pdf");
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   return (
-    <div className="py-6 flex flex-col gap-8">
+    <div ref={containerRef} className="py-6 flex flex-col gap-8">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-semibold">Financial Report</h1>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <label htmlFor="product-tag" className="sr-only">
+              Product tag
+            </label>
+            <select
+              id="product-tag"
+              value={selectedTag}
+              onChange={(e) => setSelectedTag(e.target.value)}
+              className="h-9 px-2 rounded-md bg-muted text-sm"
+            >
+              {tagOptions.map((opt: any) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             onClick={handleDownloadCSV}
             className="bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-3 rounded-md flex items-center justify-center gap-2 text-sm font-medium"

@@ -16,8 +16,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import AddLabelDialog from "./AddLabelDialog";
-import BackendService from "@/services/backend.service";
+import AddProductDialog from "./AddProductDialog";
 
 export function AddWalletForm() {
   const { addAccount, labeledAccounts } = useAccountStore(
@@ -26,49 +25,45 @@ export function AddWalletForm() {
       labeledAccounts: s.labeledAccounts,
     }))
   );
-  // labels loaded from backend
-  const [labels, setLabels] = React.useState<string[]>([]);
-
+  const [products, setProducts] = React.useState<string[]>([]);
   React.useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const svc = BackendService.getInstance();
-        const res = await svc.getLabels();
-        if (!mounted) return;
-        // normalize response to string[]
-        let out: string[] = [];
-        if (Array.isArray(res)) out = res;
-        else if (res && typeof res === "object" && (res as any).Ok) out = (res as any).Ok;
-        setLabels(out || []);
+        const prods = (labeledAccounts || [])
+          .map((a: any) => (a && a.product ? String(a.product) : ""))
+          .filter(Boolean);
+        if (mounted) setProducts(Array.from(new Set(prods)));
       } catch (e) {
-        console.warn("Failed to load labels", e);
+        // ignore
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [labeledAccounts]);
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
   const [mode, setMode] = React.useState<"account" | "principal" | "offchain">(
     "principal"
   );
   const [label, setLabel] = React.useState("");
+  const [product, setProduct] = React.useState("");
   const [isAdding, setIsAdding] = React.useState(false);
 
   const handleAdd = async () => {
-    if (!idValue || !label) return;
+    if (!idValue || !label || !product) return;
     setIsAdding(true);
     try {
       // call the appropriate store method depending on input type
       if (mode === "offchain") {
-        await useAccountStore.getState().addOffchainAccount(idValue, label);
+        await useAccountStore.getState().addOffchainAccount(idValue, label, product);
       } else {
-        await addAccount(idValue, label);
+        await addAccount(idValue, label, product);
       }
       setIdValue("");
       setLabel("");
+      setProduct("");
     } catch (e) {
       alert("Failed to add wallet: " + e);
     } finally {
@@ -125,7 +120,7 @@ export function AddWalletForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   {mode === "principal" ? "Principal ID" : "Account ID"}
@@ -141,39 +136,47 @@ export function AddWalletForm() {
                       ? "example-offchain-id"
                       : "706d348819f5b7316d497da5c9b3aae2816ffebe01943827f6e66839fcb64641"
                   }
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm font-mono"
+                  className="w-full h-10 px-3 border border-input bg-background rounded-md text-sm font-mono"
                 />
               </div>
+
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Label
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Select value={label} onValueChange={(v) => setLabel(v)}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a label" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {labels.length === 0 ? (
-                          <SelectItem value="__none" key="__none">
-                            No labels
-                          </SelectItem>
-                        ) : (
-                          labels.map((l) => (
-                            <SelectItem value={l} key={l}>
-                              {l}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <AddLabelDialog onAdded={(newLabel) => {
-                    if (!newLabel) return;
-                    setLabels((p) => Array.from(new Set([...p, newLabel])));
-                    setLabel(newLabel);
-                  }} />
+                <label className="text-sm font-medium text-foreground mb-2 block">Name</label>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="e.g. Main Account"
+                  className="w-full h-10 px-3 border border-input bg-background rounded-md text-sm"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-start gap-2 mb-2">
+                  <label className="text-sm font-medium text-foreground">Product</label>
+                  <AddProductDialog
+                    onAdded={(newProduct) => {
+                      if (!newProduct) return;
+                      setProducts((p) => Array.from(new Set([...p, newProduct])));
+                      setProduct(newProduct);
+                    }}
+                  />
+                </div>
+                <div className="mt-2">
+                  <Select value={product} onValueChange={(v) => setProduct(v)}>
+                    <SelectTrigger className="w-full h-10">
+                      <SelectValue placeholder="Select a product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.length === 0 ? (
+                        <SelectItem value="__none" key="__none">No products</SelectItem>
+                      ) : (
+                        products.map((p) => (
+                          <SelectItem value={p} key={p}>{p}</SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

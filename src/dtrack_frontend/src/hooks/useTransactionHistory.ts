@@ -258,6 +258,7 @@ export function useTransactionHistory() {
 
     return {
         transactions,
+    labeledAccounts,
         editingTx,
         setEditingTx,
         isSaving,

@@ -10,13 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SquarePlus } from "lucide-react";
-// use native <label> element because there's no Label component in the UI folder
-import BackendService from "@/services/backend.service";
 
-export default function AddLabelDialog({
+export default function AddProductDialog({
   onAdded,
 }: {
-  onAdded?: (label: string) => void;
+  onAdded?: (product: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [value, setValue] = React.useState("");
@@ -26,13 +24,11 @@ export default function AddLabelDialog({
     if (!value) return;
     setLoading(true);
     try {
-      const svc = BackendService.getInstance();
-      await svc.addLabel(value);
       setOpen(false);
       setValue("");
       onAdded && onAdded(value);
     } catch (e) {
-      alert("Failed to add label: " + e);
+      alert("Failed to add product: " + e);
     } finally {
       setLoading(false);
     }
@@ -42,25 +38,25 @@ export default function AddLabelDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="h-2 w-2">
-          <SquarePlus/>
+          <SquarePlus />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add Name</DialogTitle>
+          <DialogTitle>Add Product</DialogTitle>
         </DialogHeader>
         <div className="grid gap-2">
           <label
             className="text-sm font-medium text-foreground"
-            htmlFor="label-input"
+            htmlFor="product-input"
           >
-            Name
+            Product
           </label>
           <Input
-            id="label-input"
+            id="product-input"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="e.g. Main Account"
+            placeholder="e.g. Personal"
           />
         </div>
         <DialogFooter>
