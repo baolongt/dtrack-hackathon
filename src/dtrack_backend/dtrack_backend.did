@@ -16,7 +16,7 @@ type CustomTransaction = record {
   id : text;
   timestamp_ms : nat64;
   label : TransactionLabel;
-  amount : nat64;
+  amount : int64;
 };
 type CreateCustomTransactionRequest = record { transaction : CustomTransaction };
 type Result_4 = variant { Ok : text; Err : text };
