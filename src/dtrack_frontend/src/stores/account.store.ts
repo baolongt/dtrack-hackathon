@@ -201,11 +201,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                     labelsResAny.forEach((rec: any) => {
                         try {
                             labelMap[String(rec.id)] = rec.label
-                        } catch {}
+                        } catch { }
                     })
                 } else if (labelsResAny && typeof labelsResAny === 'object' && 'Ok' in labelsResAny) {
                     for (const rec of labelsResAny.Ok) {
-                        try { labelMap[String(rec.id)] = rec.label } catch {}
+                        try { labelMap[String(rec.id)] = rec.label } catch { }
                     }
                 }
             } catch (e) {
@@ -365,11 +365,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 amount: amountCents,
                 account: storedAccount,
             })
-            if (result) {
-                await get().fetchCustomAccount()
-                return true
-            }
-            throw new Error('update_custom_transaction failed')
+
+            await get().fetchCustomAccount()
+            return true
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : String(e))
         }
