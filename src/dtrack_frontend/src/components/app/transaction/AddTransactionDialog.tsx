@@ -1,4 +1,5 @@
 import * as React from "react";
+import { TX_LABELS } from "@/lib/const";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,7 +42,6 @@ export default function AddTransactionDialog({
 }) {
   const [open, setOpen] = React.useState(false);
 
-  const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Other"];
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();

@@ -22,7 +22,7 @@ export const RECEIVED_LABEL = "On-chain Revenue";
 
 export const INDEX_LABELS = [SENT_LABEL, RECEIVED_LABEL];
 
-export const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Investment", "Crowdfund", "Onchain-grant"];
+export const TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Investment", "Crowdfund", "Onchain-grant", RECEIVED_LABEL];
 
 export const CUSTOM_TX_LABELS = ["Subscription", "Invoice Payment", "Refund", "Investment", "Crowdfund"];
 

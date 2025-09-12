@@ -192,7 +192,7 @@ export function TransactionHistory() {
             <DatePicker value={fromDate} onChange={setFromDate} label="From" />
             <DatePicker value={toDate} onChange={setToDate} label="To" />
             <div className="flex flex-col gap-3">
-              <label className="px-1 text-sm">Tx Type</label>
+              <label className="px-1 text-sm">Label</label>
               <Select value={txType} onValueChange={(v) => setTxType(v)}>
                 <SelectTrigger className="w-48">
                   <SelectValue />
