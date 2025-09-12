@@ -120,6 +120,7 @@ export default function AddTransactionDialog({
             <label className="text-xs text-muted-foreground mb-1">Account</label>
             <Select
               value={newTx.account}
+              required
               onValueChange={(v) => {
                 const acct = accounts.find((a) => a.id === v) ?? null;
                 setNewTx({ ...newTx, account: v, productTag: acct ? acct.productTag : "" });
@@ -144,7 +145,7 @@ export default function AddTransactionDialog({
               value={newTx.productTag || ""}
               readOnly
               className="w-full py-1 bg-muted/10"
-              placeholder="Auto-populated from selected account"
+              placeholder="The product of selected account"
             />
           </div>
 
@@ -152,7 +153,7 @@ export default function AddTransactionDialog({
             <Button
               type="submit"
               size="sm"
-              disabled={isCreating}
+              disabled={isCreating || !newTx.account}
               className="px-3 py-1"
             >
               {isCreating ? "Creating..." : "Create"}
