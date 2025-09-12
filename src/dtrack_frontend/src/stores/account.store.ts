@@ -437,6 +437,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             const storedAccount = { Icrc1: accountForCall } as any
             await backend.createLabeledAccount({ label, account: storedAccount, product: product || '' })
             await get().fetchLabeledAccounts()
+            await get().fetchBalances()
             return true
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : String(e))
@@ -449,6 +450,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             const storedAccount = { Offchain: account } as any
             await backend.createLabeledAccount({ label, account: storedAccount, product: product || '' })
             await get().fetchLabeledAccounts()
+            await get().fetchBalances()
             return true
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : String(e))
