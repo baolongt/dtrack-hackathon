@@ -127,19 +127,19 @@ export class BackendService {
     }
 
     async getProducts() {
-        const res = await (this.actor as any).get_products();
+        const res = await this.actor.get_products();
         if ("Ok" in res) return res.Ok;
         throw new Error(res.Err || "get_products failed");
     }
 
     async addProduct(payload: { product: string }) {
-        const res = await (this.actor as any).add_product(payload);
+        const res = await this.actor.add_product(payload);
         if ("Ok" in res) return res.Ok;
         throw new Error(res.Err || "add_product failed");
     }
 
     async removeProduct(product: string) {
-        const res = await (this.actor as any).remove_product(product);
+        const res = await this.actor.remove_product(product);
         if ("Ok" in res) return res.Ok;
         throw new Error(res.Err || "remove_product failed");
     }

@@ -1,5 +1,6 @@
 export const idlFactory = ({ IDL }) => {
   const Result = IDL.Variant({ 'Ok' : IDL.Null, 'Err' : IDL.Text });
+  const ProductRequest = IDL.Record({ 'product' : IDL.Text });
   const Account = IDL.Record({
     'owner' : IDL.Principal,
     'subaccount' : IDL.Opt(IDL.Vec(IDL.Nat8)),
@@ -38,11 +39,12 @@ export const idlFactory = ({ IDL }) => {
     'Ok' : IDL.Vec(LabeledAccount),
     'Err' : IDL.Text,
   });
+  const Result_5 = IDL.Variant({ 'Ok' : IDL.Vec(IDL.Text), 'Err' : IDL.Text });
   const TransactionLabelRecord = IDL.Record({
     'id' : IDL.Nat64,
     'label' : IDL.Text,
   });
-  const Result_5 = IDL.Variant({
+  const Result_6 = IDL.Variant({
     'Ok' : IDL.Vec(TransactionLabelRecord),
     'Err' : IDL.Text,
   });
@@ -56,6 +58,7 @@ export const idlFactory = ({ IDL }) => {
   });
   return IDL.Service({
     'add_label' : IDL.Func([IDL.Text], [Result], []),
+    'add_product' : IDL.Func([ProductRequest], [Result], []),
     'create_custom_transaction' : IDL.Func(
         [CreateCustomTransactionRequest],
         [Result_1],
@@ -71,7 +74,9 @@ export const idlFactory = ({ IDL }) => {
     'get_custom_transactions' : IDL.Func([], [Result_3], ['query']),
     'get_labeled_accounts' : IDL.Func([], [Result_4], ['query']),
     'get_labels' : IDL.Func([], [IDL.Vec(IDL.Text)], []),
-    'get_transaction_labels' : IDL.Func([], [Result_5], []),
+    'get_products' : IDL.Func([], [Result_5], ['query']),
+    'get_transaction_labels' : IDL.Func([], [Result_6], []),
+    'remove_product' : IDL.Func([IDL.Text], [Result], []),
     'set_transaction_label' : IDL.Func(
         [SetTransactionLabelRequest],
         [Result],

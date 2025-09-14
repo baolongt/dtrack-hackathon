@@ -140,9 +140,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         set({ isLoadingProducts: true, error: null })
         try {
             const res = await backendService.getProducts()
-            const arr = Array.isArray(res) ? res : (res && res.Ok ? res.Ok : [])
-            const prods: string[] = (arr || []).map((p: any) => String(p))
-            set({ products: prods })
+            set({ products: res })
         } catch (e) {
             set({ error: e instanceof Error ? e.message : String(e) })
         } finally {

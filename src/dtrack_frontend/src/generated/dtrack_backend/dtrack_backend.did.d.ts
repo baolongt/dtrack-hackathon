@@ -26,6 +26,7 @@ export interface LabeledAccount {
   'account' : StoredAccount,
   'product' : string,
 }
+export interface ProductRequest { 'product' : string }
 export type Result = { 'Ok' : null } |
   { 'Err' : string };
 export type Result_1 = { 'Ok' : string } |
@@ -36,7 +37,9 @@ export type Result_3 = { 'Ok' : Array<CustomTransaction> } |
   { 'Err' : string };
 export type Result_4 = { 'Ok' : Array<LabeledAccount> } |
   { 'Err' : string };
-export type Result_5 = { 'Ok' : Array<TransactionLabelRecord> } |
+export type Result_5 = { 'Ok' : Array<string> } |
+  { 'Err' : string };
+export type Result_6 = { 'Ok' : Array<TransactionLabelRecord> } |
   { 'Err' : string };
 export interface SetTransactionLabelRequest {
   'transaction_id' : bigint,
@@ -51,6 +54,7 @@ export interface UpdateLabeledAccountRequest {
 }
 export interface _SERVICE {
   'add_label' : ActorMethod<[string], Result>,
+  'add_product' : ActorMethod<[ProductRequest], Result>,
   'create_custom_transaction' : ActorMethod<
     [CreateCustomTransactionRequest],
     Result_1
@@ -64,7 +68,9 @@ export interface _SERVICE {
   'get_custom_transactions' : ActorMethod<[], Result_3>,
   'get_labeled_accounts' : ActorMethod<[], Result_4>,
   'get_labels' : ActorMethod<[], Array<string>>,
-  'get_transaction_labels' : ActorMethod<[], Result_5>,
+  'get_products' : ActorMethod<[], Result_5>,
+  'get_transaction_labels' : ActorMethod<[], Result_6>,
+  'remove_product' : ActorMethod<[string], Result>,
   'set_transaction_label' : ActorMethod<[SetTransactionLabelRequest], Result>,
   'update_custom_transaction' : ActorMethod<[CustomTransaction], Result>,
   'update_labeled_account' : ActorMethod<[UpdateLabeledAccountRequest], Result>,
