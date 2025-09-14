@@ -241,7 +241,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 const inner = acc.account.Icrc1
                 const account_id = AccountIdentifier.fromPrincipal({
                     principal: inner.owner,
-                }).toHex()
+                }).toHex();
+                const account_str = encodeIcrcAccount(toIcrcAccount(inner))
+
                 try {
                     const res = await indexService!.getAccountTransactions(inner, 100);
                     const transactions = res.transactions;
@@ -264,11 +266,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                         return tx
                     })
 
-                    return { key: account_id, txs: temp }
+                    return { key: account_str, txs: temp }
                 } catch (err) {
-                    console.error(`Failed to fetch transactions for account ${account_id}:`, err)
+                    console.error(`Failed to fetch transactions for account ${account_str}:`, err)
                     // on error, return empty transaction list for this account
-                    return { key: account_id, txs: [] }
+                    return { key: account_str, txs: [] }
                 }
             })
 
