@@ -30,6 +30,11 @@ pub struct SetTransactionLabelRequest {
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct ProductRequest {
+    pub product: String,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct CreateCustomTransactionRequest {
     pub transaction: CustomTransaction,
 }
@@ -100,6 +105,25 @@ pub fn update_labeled_account(request: UpdateLabeledAccountRequest) -> Result<()
 #[ic_cdk::update]
 pub fn get_transaction_labels() -> Result<Vec<TransactionLabelRecord>, String> {
     Ok(repo_get_transaction_labels(&msg_caller()))
+}
+
+#[ic_cdk::update]
+pub fn add_product(request: ProductRequest) -> Result<(), String> {
+    if request.product.trim().is_empty() || request.product.len() > 100 {
+        return Err("Invalid product".to_string());
+    }
+
+    crate::repository::add_product(&msg_caller(), request.product.trim().to_string())
+}
+
+#[ic_cdk::update]
+pub fn remove_product(product: String) -> Result<(), String> {
+    crate::repository::remove_product(&msg_caller(), &product)
+}
+
+#[ic_cdk::query]
+pub fn get_products() -> Result<Vec<String>, String> {
+    Ok(crate::repository::get_products(&msg_caller()))
 }
 
 #[ic_cdk::update]

@@ -9,7 +9,7 @@ use std::cell::RefCell;
 
 use crate::types::{
     Accounts, CustomTransaction, CustomTransactions, LabelList, LabeledAccount, StoredAccount,
-    TransactionLabelRecord, TxLabels,
+    TransactionLabelRecord, TxLabels, ProductList,
 };
 
 pub type Memory = VirtualMemory<DefaultMemoryImpl>;
@@ -38,6 +38,12 @@ thread_local! {
     pub static USER_LABEL: RefCell<StableBTreeMap<Principal, LabelList, Memory>> = RefCell::new(
         StableBTreeMap::init(
             MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(2)))
+        )
+    );
+
+    pub static USER_PRODUCT: RefCell<StableBTreeMap<Principal, ProductList, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(MemoryId::new(3)))
         )
     );
 }
@@ -253,6 +259,46 @@ pub fn add_label(principal: &Principal, label: String) -> Result<(), String> {
             Ok(())
         } else {
             return Err("Label already exists".to_string());
+        }
+    })
+}
+
+pub fn get_products(principal: &Principal) -> Vec<String> {
+    USER_PRODUCT.with_borrow(|up| up.get(principal).map_or_else(|| vec![], |entry| entry.0))
+}
+
+pub fn add_product(principal: &Principal, product: String) -> Result<(), String> {
+    USER_PRODUCT.with_borrow_mut(|up| {
+        let mut entry = up.get(principal).unwrap_or_else(|| ProductList(vec![]));
+        if entry.0.len() >= 100 {
+            return Err("Maximum number of products reached".to_string());
+        }
+        if !entry.0.contains(&product) {
+            entry.0.push(product);
+            up.insert(principal.clone(), entry);
+            Ok(())
+        } else {
+            return Err("Product already exists".to_string());
+        }
+    })
+}
+
+pub fn remove_product(principal: &Principal, product: &str) -> Result<(), String> {
+    USER_PRODUCT.with_borrow_mut(|up| {
+        if let Some(mut entry) = up.get(principal) {
+            if let Some(pos) = entry.0.iter().position(|p| p == product) {
+                entry.0.remove(pos);
+                if entry.0.is_empty() {
+                    up.remove(principal);
+                } else {
+                    up.insert(principal.clone(), entry);
+                }
+                Ok(())
+            } else {
+                Err("Product not found".to_string())
+            }
+        } else {
+            Err("No products for this principal".to_string())
         }
     })
 }
