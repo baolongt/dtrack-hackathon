@@ -9,5 +9,5 @@ export const IDENTITY_PROVIDER_HOST = isLocal
 
 
 export const CANISTER_ID_DTRACK_BACKEND = "hca6p-mqaaa-aaaak-qulwq-cai";
-export const CANISTER_ID_ICP_LEDGER_CANISTER = "ryjl3-tyaaa-aaaab-qaa4q-cai"
+export const CANISTER_ID_ICP_LEDGER_CANISTER = "ryjl3-tyaaa-aaaaa-aaaba-cai"
 export const CANISTER_ID_ICP_INDEX_CANISTER = "qhbym-qaaaa-aaaaa-aaafq-cai"
