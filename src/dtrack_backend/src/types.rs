@@ -108,7 +108,28 @@ impl Storable for CustomTransactions {
 #[derive(CandidType, Deserialize)]
 pub struct LabelList(pub Vec<String>);
 
+#[derive(CandidType, Deserialize)]
+pub struct ProductList(pub Vec<String>);
 impl Storable for LabelList {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+
+    fn into_bytes(self) -> Vec<u8> {
+        Encode!(&self).unwrap()
+    }
+
+    const BOUND: Bound = Bound::Bounded {
+        max_size: 2048,
+        is_fixed_size: false,
+    };
+}
+
+impl Storable for ProductList {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
     }

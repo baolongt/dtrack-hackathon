@@ -29,10 +29,12 @@ const storedAccountKey = (acc: LabeledAccount): string => {
 interface AccountStore {
     labeledAccounts: LabeledAccount[]
     customTransactions: Transaction[]
+    products: string[]
     identity: Identity | null
     isLoadingLabeled: boolean
     isLoadingBalances: boolean
     isLoadingIndex: boolean
+    isLoadingProducts: boolean
     error: string | null
 
     // setters
@@ -44,6 +46,7 @@ interface AccountStore {
     fetchIndexTransactions(): Promise<void>
     fetchCustomAccount(): Promise<void>
     fetchTransactionLabels(): Promise<void>
+    fetchProducts(): Promise<void>
     fetchAll(): Promise<void>
     updateTransactionLabel(transactionId: string, label: string): Promise<boolean>
     createCustomTransaction(tx: { timestamp_ms: number; label: string; amount: number; account: string }): Promise<{ ok: true; id: string } | never>
@@ -53,16 +56,20 @@ interface AccountStore {
     removeAccount(account: string): Promise<boolean>
     addOffchainAccount(account: string, label: string, product?: string): Promise<boolean>
     removeOffchainAccount(account: string): Promise<boolean>
+    addProduct(product: string): Promise<boolean>
+    removeProduct(product: string): Promise<boolean>
     clear(): void
 }
 
 export const useAccountStore = create<AccountStore>((set, get) => ({
     labeledAccounts: [],
     customTransactions: [],
+    products: [],
     identity: null,
     isLoadingLabeled: false,
     isLoadingBalances: false,
     isLoadingIndex: false,
+    isLoadingProducts: false,
     error: null,
 
     setIdentity(identity: Identity | null) {
@@ -124,6 +131,20 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             console.log("Fetched transaction labels and applied mapping:", labelMap)
         } catch (e) {
             console.warn("fetchTransactionLabels: failed to fetch", e);
+        }
+    },
+    async fetchProducts() {
+        const backendService = BackendService.getInstance(get().identity || undefined)
+        set({ isLoadingProducts: true, error: null })
+        try {
+            const res = await backendService.getProducts()
+            const arr = Array.isArray(res) ? res : (res && res.Ok ? res.Ok : [])
+            const prods: string[] = (arr || []).map((p: any) => String(p))
+            set({ products: prods })
+        } catch (e) {
+            set({ error: e instanceof Error ? e.message : String(e) })
+        } finally {
+            set({ isLoadingProducts: false })
         }
     },
     async fetchBalances(
@@ -286,6 +307,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             get().fetchBalances(),
             get().fetchIndexTransactions(),
             get().fetchCustomAccount(),
+            get().fetchProducts(),
         ])
         // fetch and apply any user-set transaction labels after transactions are loaded
         await get().fetchTransactionLabels()
@@ -449,6 +471,29 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
             await backend.createLabeledAccount({ label, account: storedAccount, product: product || '' })
             await get().fetchLabeledAccounts()
             await get().fetchBalances()
+            return true
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : String(e))
+        }
+    },
+
+    async addProduct(product: string) {
+        const backend = BackendService.getInstance(get().identity || undefined)
+        try {
+            const res = await backend.addProduct({ product })
+            // actor returns Result (Ok or Err) - addProduct wrapper will throw on Err
+            await get().fetchProducts()
+            return true
+        } catch (e) {
+            throw new Error(e instanceof Error ? e.message : String(e))
+        }
+    },
+
+    async removeProduct(product: string) {
+        const backend = BackendService.getInstance(get().identity || undefined)
+        try {
+            const res = await backend.removeProduct(product)
+            await get().fetchProducts()
             return true
         } catch (e) {
             throw new Error(e instanceof Error ? e.message : String(e))

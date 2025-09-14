@@ -100,6 +100,24 @@ export class BackendService {
     async getLabels() {
         return await this.actor.get_labels()
     }
+
+    async getProducts() {
+        const res = await (this.actor as any).get_products();
+        if ("Ok" in res) return res.Ok;
+        throw new Error(res.Err || "get_products failed");
+    }
+
+    async addProduct(payload: { product: string }) {
+        const res = await (this.actor as any).add_product(payload);
+        if ("Ok" in res) return res.Ok;
+        throw new Error(res.Err || "add_product failed");
+    }
+
+    async removeProduct(product: string) {
+        const res = await (this.actor as any).remove_product(product);
+        if ("Ok" in res) return res.Ok;
+        throw new Error(res.Err || "remove_product failed");
+    }
 }
 
 export default BackendService;

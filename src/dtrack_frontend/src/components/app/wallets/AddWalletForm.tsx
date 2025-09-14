@@ -19,29 +19,12 @@ import {
 import AddProductDialog from "./AddProductDialog";
 
 export function AddWalletForm() {
-  const { addAccount, labeledAccounts } = useAccountStore(
+  const { addAccount, products } = useAccountStore(
     useShallow((s) => ({
       addAccount: s.addAccount,
-      labeledAccounts: s.labeledAccounts,
+      products: s.products,
     }))
   );
-  const [products, setProducts] = React.useState<string[]>([]);
-  React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const prods = (labeledAccounts || [])
-          .map((a: any) => (a && a.product ? String(a.product) : ""))
-          .filter(Boolean);
-        if (mounted) setProducts(Array.from(new Set(prods)));
-      } catch (e) {
-        // ignore
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [labeledAccounts]);
   // idValue can be either an account-id (hex) or a principal text depending on mode
   const [idValue, setIdValue] = React.useState("");
   const [mode, setMode] = React.useState<"account" | "principal" | "offchain">(
@@ -157,7 +140,6 @@ export function AddWalletForm() {
                   <AddProductDialog
                     onAdded={(newProduct) => {
                       if (!newProduct) return;
-                      setProducts((p) => Array.from(new Set([...p, newProduct])));
                       setProduct(newProduct);
                     }}
                   />
@@ -168,7 +150,7 @@ export function AddWalletForm() {
                       <SelectValue placeholder="Select a product" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.length === 0 ? (
+                      {(!products || products.length === 0) ? (
                         <SelectItem value="__none" key="__none">No products</SelectItem>
                       ) : (
                         products.map((p) => (
