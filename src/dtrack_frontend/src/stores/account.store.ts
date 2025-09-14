@@ -10,6 +10,7 @@ import { toNullable } from '@dfinity/utils'
 import { convertIndexTxToFrontend, getTokenPrice, toIcrcAccount } from '../lib/utils'
 import { Identity } from '@dfinity/agent'
 import { CANISTER_ID_ICP_LEDGER_CANISTER, CANISTER_ID_ICP_INDEX_CANISTER } from '../lib/env'
+import { AccountIdentifier } from "@dfinity/ledger-icp";
 
 
 // helper: is the stored account an Icrc1 on-ledger account
@@ -238,7 +239,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 }
 
                 const inner = acc.account.Icrc1
-                const account_str = encodeIcrcAccount(toIcrcAccount(inner))
+                const account_id = AccountIdentifier.fromPrincipal({
+                    principal: inner.owner,
+                }).toHex()
                 try {
                     const res = await indexService!.getAccountTransactions(inner, 100);
                     const transactions = res.transactions;
@@ -247,7 +250,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                         const res = convertIndexTxToFrontend(
                             indexTx,
                             acc.label,
-                            account_str,
+                            account_id,
                             CANISTER_ID_ICP_LEDGER_CANISTER
                         )
                         return res;
@@ -261,11 +264,11 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                         return tx
                     })
 
-                    return { key: account_str, txs: temp }
+                    return { key: account_id, txs: temp }
                 } catch (err) {
-                    console.error(`Failed to fetch transactions for account ${account_str}:`, err)
+                    console.error(`Failed to fetch transactions for account ${account_id}:`, err)
                     // on error, return empty transaction list for this account
-                    return { key: account_str, txs: [] }
+                    return { key: account_id, txs: [] }
                 }
             })
 
