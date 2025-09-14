@@ -40,7 +40,9 @@ export function AddWalletForm() {
     try {
       // call the appropriate store method depending on input type
       if (mode === "offchain") {
-        await useAccountStore.getState().addOffchainAccount(idValue, label, product);
+        await useAccountStore
+          .getState()
+          .addOffchainAccount(idValue, label, product);
       } else {
         await addAccount(idValue, label, product);
       }
@@ -124,7 +126,9 @@ export function AddWalletForm() {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">Name</label>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Name
+                </label>
                 <input
                   type="text"
                   value={label}
@@ -136,7 +140,9 @@ export function AddWalletForm() {
 
               <div>
                 <div className="flex items-center justify-start gap-2 mb-2">
-                  <label className="text-sm font-medium text-foreground">Product</label>
+                  <label className="text-sm font-medium text-foreground">
+                    Product
+                  </label>
                   <AddProductDialog
                     onAdded={(newProduct) => {
                       if (!newProduct) return;
@@ -150,11 +156,15 @@ export function AddWalletForm() {
                       <SelectValue placeholder="Select a product" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(!products || products.length === 0) ? (
-                        <SelectItem value="__none" key="__none">No products</SelectItem>
+                      {!products || products.length === 0 ? (
+                        <SelectItem value="__none" key="__none">
+                          No products
+                        </SelectItem>
                       ) : (
                         products.map((p) => (
-                          <SelectItem value={p} key={p}>{p}</SelectItem>
+                          <SelectItem value={p} key={p}>
+                            {p}
+                          </SelectItem>
                         ))
                       )}
                     </SelectContent>

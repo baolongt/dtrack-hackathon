@@ -9,13 +9,18 @@
     "dtrack_frontend": {
       "source": ["src/dtrack_frontend/dist"],
       "type": "assets",
-      "workspace": "dtrack_frontend",
-      "specified_id": "j3ikr-giaaa-aaaak-qukua-cai"
+      "workspace": "dtrack_frontend"
     },
     "icp_index_canister": {
       "type": "custom",
       "candid": "./target/artifacts/icp-index-canister.did",
-      "wasm": "./target/artifacts/icp-index-canister.wasm.gz"
+      "wasm": "./target/artifacts/icp-index-canister.wasm.gz",
+      "specified_id": "qhbym-qaaaa-aaaaa-aaafq-cai",
+      "remote": {
+        "id": {
+          "ic": "qhbym-qaaaa-aaaaa-aaafq-cai"
+        }
+      }
     },
     "icp_ledger_canister": {
       "type": "custom",

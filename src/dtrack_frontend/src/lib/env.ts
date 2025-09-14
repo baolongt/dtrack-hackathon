@@ -1,14 +1,13 @@
 // Centralized environment constants for network configuration
 const isLocal = process.env.DFX_NETWORK === "local";
 
-export const HOST = isLocal ? "http://127.0.0.1:8000" : "https://ic0.app";
+export const HOST = isLocal ? "http://127.0.0.1:8000" : "https://icp0.io";
 export const SHOULD_FETCH_ROOT_KEY = isLocal;
-export const identityProviderHost = isLocal
+export const IDENTITY_PROVIDER_HOST = isLocal
     ? `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:8000`
-    : "https://identity.ic0.app";
+    : "https://id.ai";
 
-export default {
-    host: HOST,
-    shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
-    identityProviderHost,
-};
+
+export const CANISTER_ID_DTRACK_BACKEND = "hca6p-mqaaa-aaaak-qulwq-cai";
+export const CANISTER_ID_ICP_LEDGER_CANISTER = "ryjl3-tyaaa-aaaab-qaa4q-cai"
+export const CANISTER_ID_ICP_INDEX_CANISTER = "qhbym-qaaaa-aaaaa-aaafq-cai"

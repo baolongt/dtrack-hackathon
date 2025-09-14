@@ -1,11 +1,12 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { isSendLabel, RECEIVED_LABEL, ROUTE_VIEW_MAP, SENT_LABEL } from "./const"
-import { Account, AccountIdentifier, SubAccount } from "@dfinity/ledger-icp"
-import { fromNullable, toNullable } from "@dfinity/utils"
+import { Account, TransactionWithId } from "@dfinity/ledger-icp"
+import { fromNullable } from "@dfinity/utils"
 import { encodeIcrcAccount, IcrcAccount } from "@dfinity/ledger-icrc"
 import { Transaction } from "@/hooks/types"
-import { TransactionWithId } from "../../../declarations/icp_index_canister/icp_index_canister.did"
+import { CANISTER_ID_ICP_LEDGER_CANISTER, HOST, SHOULD_FETCH_ROOT_KEY } from "./env"
+import { HttpAgent, Identity } from "@dfinity/agent"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -33,7 +34,7 @@ export const truncateAccount = (acc: Account) => {
 }
 
 export const getTokenPrice = (ledger_id: string, amount: number): number => {
-  if (ledger_id === "ryjl3-tyaaa-aaaaa-aaaba-cai") return amount * 5; // ICP
+  if (ledger_id === CANISTER_ID_ICP_LEDGER_CANISTER) return amount * 5; // ICP
   // Fallback: return amount unchanged for unknown ledgers
   return amount
 }
@@ -72,7 +73,7 @@ export const convertIndexTxToFrontend = (
   indexTx: TransactionWithId,
   accountLabel: string,
   accountIdStr: string,
-  ledger_id = process.env.CANISTER_ID_ICP_LEDGER_CANISTER || ""
+  ledger_id = CANISTER_ID_ICP_LEDGER_CANISTER
 ): Transaction | null => {
   try {
     const tx = indexTx.transaction
@@ -161,3 +162,12 @@ export const convertIndexTxToFrontend = (
     return null
   }
 }
+
+export const getAgent = (identity?: Identity | undefined) => {
+  const agent = HttpAgent.createSync({
+    identity,
+    host: HOST,
+    shouldFetchRootKey: SHOULD_FETCH_ROOT_KEY,
+  });
+  return agent;
+};

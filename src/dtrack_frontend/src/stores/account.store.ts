@@ -9,6 +9,8 @@ import { decodeIcrcAccount, encodeIcrcAccount } from '@dfinity/ledger-icrc'
 import { toNullable } from '@dfinity/utils'
 import { convertIndexTxToFrontend, getTokenPrice, toIcrcAccount } from '../lib/utils'
 import { Identity } from '@dfinity/agent'
+import { CANISTER_ID_ICP_LEDGER_CANISTER, CANISTER_ID_ICP_INDEX_CANISTER } from '../lib/env'
+
 
 // helper: is the stored account an Icrc1 on-ledger account
 const isStoredIcrc1 = (acc: LabeledAccount): acc is ICRC1Account => {
@@ -148,10 +150,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
     async fetchBalances(
-        ledger_id = process.env.CANISTER_ID_ICP_LEDGER_CANISTER || ""
     ) {
-        let ledgerService = LedgerService.getInstantce(
-            ledger_id,
+        let ledgerService = LedgerService.getInstance(
+            CANISTER_ID_ICP_LEDGER_CANISTER,
             get().identity || undefined
         )
         if (!ledgerService) throw new Error('LedgerService not initialized')
@@ -177,7 +178,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                 try {
                     const bal = await ledgerService!.balanceOf(inner);
                     const token = Number(bal) / Math.pow(10, decimals)
-                    const usd = getTokenPrice(ledger_id, token)
+                    const usd = getTokenPrice(CANISTER_ID_ICP_LEDGER_CANISTER, token)
                     return { key, balance: usd }
                 } catch {
                     return { key, balance: 0 }
@@ -201,12 +202,9 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
         }
     },
 
-    async fetchIndexTransactions(
-        index_id = process.env.CANISTER_ID_ICP_INDEX_CANISTER || "",
-        ledger_id = process.env.CANISTER_ID_ICP_LEDGER_CANISTER || ""
-    ) {
-        const indexService = IndexService.getInstantce(
-            index_id,
+    async fetchIndexTransactions() {
+        const indexService = IndexService.getInstance(
+            CANISTER_ID_ICP_INDEX_CANISTER,
             get().identity || undefined
         )
         const backendService = BackendService.getInstance(get().identity || undefined)
@@ -252,7 +250,7 @@ export const useAccountStore = create<AccountStore>((set, get) => ({
                             indexTx,
                             acc.label,
                             account_str,
-                            ledger_id
+                            CANISTER_ID_ICP_LEDGER_CANISTER
                         )
                         return res;
                     }).filter((tx) => tx !== null) as Transaction[]
