@@ -1,5 +1,5 @@
+import { StoredAccount } from "@/generated/dtrack_backend/dtrack_backend.did";
 import { Account } from "@dfinity/ledger-icp";
-import { StoredAccount } from "../../../declarations/dtrack_backend/dtrack_backend.did";
 
 export interface LabeledAccount {
     account: StoredAccount;
