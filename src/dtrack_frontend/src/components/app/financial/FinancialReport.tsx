@@ -278,7 +278,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       const totalExpenses = txs
         .filter((t) => isExpenseLabel(t))
         .reduce((sum, t) => sum + t.amount, 0);
-      const netProfit = totalRevenue - totalExpenses;
+      const netProfit = totalRevenue + totalExpenses;
       return {
         totalRevenue,
         totalExpenses,
@@ -331,7 +331,7 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
         );
       })
       .reduce((sum, t) => sum + t.amount, 0);
-    const netProfit = totalRevenue - totalExpenses;
+    const netProfit = totalRevenue + totalExpenses;
     const totalOnChainTransactions = filteredTransactions.filter(
       (t) => !t.isCustom
     ).length;
