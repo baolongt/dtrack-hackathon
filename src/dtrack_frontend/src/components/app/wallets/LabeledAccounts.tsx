@@ -9,6 +9,15 @@ import {
 import useAccountStore from "@/stores/account.store";
 import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import AddWalletForm from "./AddWalletForm";
 import { toIcrcAccount, truncateAccount, truncatePrincipal } from "@/lib/utils";
@@ -24,12 +33,14 @@ import {
 } from "@/components/ui/select";
 
 export function LabeledAccounts() {
-  const { accounts: labeledAccounts } = useAccountStore(
+  const { accounts: labeledAccounts, products, removeProduct } = useAccountStore(
     useShallow((s) => {
       return {
         accounts: s.labeledAccounts,
         removeAccount: s.removeAccount,
         removeOffchainAccount: s.removeOffchainAccount,
+        products: s.products,
+        removeProduct: s.removeProduct,
       };
     })
   );
@@ -38,14 +49,7 @@ export function LabeledAccounts() {
   const [productFilter, setProductFilter] = React.useState<string>("__all");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "onchain" | "offchain">("all");
 
-  const products = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const a of labeledAccounts || []) {
-      const p = (a as any).product;
-      if (p) set.add(String(p));
-    }
-    return Array.from(set);
-  }, [labeledAccounts]);
+  // products come from the backend-driven product list in the store
 
   const filtered = React.useMemo(() => {
     const q = String(query || "").trim().toLowerCase();
@@ -96,17 +100,76 @@ export function LabeledAccounts() {
               />
 
               <div className="flex items-center gap-2 mt-2 md:mt-0">
-                <Select value={productFilter} onValueChange={(v) => setProductFilter(v)}>
-                  <SelectTrigger className="h-10 w-48">
-                    <SelectValue placeholder="Product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all" key="__all">All products</SelectItem>
-                    {products.map((p) => (
-                      <SelectItem value={p} key={p}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select value={productFilter} onValueChange={(v) => setProductFilter(v)}>
+                    <SelectTrigger className="h-10 w-48">
+                      <SelectValue placeholder="Product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all" key="__all">All products</SelectItem>
+                      {products && products.length > 0 ? (
+                        products.map((p) => (
+                          <SelectItem value={p} key={p}>{p}</SelectItem>
+                        ))
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">Manage products</Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Manage Products</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        {(!products || products.length === 0) ? (
+                          <p className="text-sm text-muted-foreground">No products defined.</p>
+                        ) : (
+                          products.map((p) => {
+                            const count = (labeledAccounts || []).filter(a => (a as any).product === p).length
+                            return (
+                              <div key={p} className="flex items-center justify-between p-2 border rounded">
+                                <div>
+                                  <div className="font-medium">{p}</div>
+                                  <div className="text-sm text-muted-foreground">Used by {count} account{count !== 1 ? 's' : ''}</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600"
+                                    onClick={async () => {
+                                      // confirm deletion
+                                      // eslint-disable-next-line no-restricted-globals
+                                      const ok = window.confirm(`Remove product '${p}'? This will not delete accounts.`)
+                                      if (!ok) return;
+                                      try {
+                                        await removeProduct(p)
+                                        // if current filter equals deleted product, reset
+                                        if (productFilter === p) setProductFilter('__all')
+                                      } catch (e) {
+                                        window.alert(e instanceof Error ? e.message : String(e))
+                                      }
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })
+                        )}
+                      </div>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button>Close</Button>
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
 
                 <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
                   <SelectTrigger className="h-10 w-40">

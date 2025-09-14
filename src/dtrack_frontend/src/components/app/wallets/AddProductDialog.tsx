@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SquarePlus } from "lucide-react";
+import useAccountStore from "@/stores/account.store";
 
 export default function AddProductDialog({
   onAdded,
@@ -24,6 +25,7 @@ export default function AddProductDialog({
     if (!value) return;
     setLoading(true);
     try {
+      await useAccountStore.getState().addProduct(value)
       setOpen(false);
       setValue("");
       onAdded && onAdded(value);
