@@ -45,7 +45,7 @@ const App: React.FC = () => {
   };
 
   // When not authenticated, show login screen
-  if (!identity || status === "idle") {
+  if (!identity) {
     return <LoginPage />;
   }
 
