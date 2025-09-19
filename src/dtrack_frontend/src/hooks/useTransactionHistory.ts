@@ -72,7 +72,7 @@ export function useTransactionHistory() {
             new Intl.NumberFormat(undefined, {
                 style: "currency",
                 currency: "USD",
-                maximumFractionDigits: 2,
+                maximumFractionDigits: 5,
             }),
         []
     );
