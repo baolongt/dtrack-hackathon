@@ -15,7 +15,7 @@ dTrack is a comprehensive financial tracking and analytics platform built on the
 
 The dTrack platform consists of several interconnected components:
 
-![Current Architecture](docs/current_architect.png)
+![Current Architecture](docs/backend_architect.png)
 
 **Data Flow:**
 
@@ -24,17 +24,6 @@ The dTrack platform consists of several interconnected components:
 3. **Frontend Metrics**: Collection of user interaction and application usage data
 4. **Data Aggregation**: Central processing service that combines all data sources
 5. **Analytics Dashboard**: Real-time visualization of financial trends and business metrics
-
-### Backend Canister Structure
-
-![Backend Canister](docs/backend_canister.png)
-
-The backend consists of:
-
-- **Index Canister**: Polls transaction data from the ICP ledger and monitors account balances
-- **Backend Canister**: Contains two main services:
-  - **Address Manager Service**: Manages cryptocurrency addresses and account information
-  - **Aggregate Transactions Service**: Processes and consolidates transaction data from multiple sources
 
 ### Technology Stack
 
