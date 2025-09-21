@@ -15,15 +15,10 @@ import {
   Legend,
 } from "recharts";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import html2canvas from "html2canvas-pro";
 import { Transaction } from "../../../hooks/types";
-import {
-  SENT_LABEL,
-  RECEIVED_LABEL,
-  TX_LABELS,
-  CUSTOM_TX_LABELS,
-} from "@/lib/const";
+import { SENT_LABEL, TX_LABELS, CUSTOM_TX_LABELS } from "@/lib/const";
+import { computeFinancialMetrics, FinancialMetrics } from "./utils/metrics";
 import {
   DownloadIcon,
   ArrowUpIcon,
@@ -33,21 +28,14 @@ import {
 import useAccountStore from "@/stores/account.store";
 import { encodeIcrcAccount } from "@dfinity/ledger-icrc";
 import { toIcrcAccount } from "@/lib/utils";
-
-// Helper to format currency
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+import { formatCurrency } from "./utils";
 
 // Helpers to convert CSS oklch() color strings to rgb(...) strings.
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const fromOklabToSRGB = (L: number, a: number, b: number) => {
   const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
   const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
   const l_3 = l_ * l_ * l_;
   const m_3 = m_ * m_ * m_;
   const s_3 = s_ * s_ * s_;
@@ -62,13 +50,20 @@ const fromOklabToSRGB = (L: number, a: number, b: number) => {
   r = toSRGB(r);
   g = toSRGB(g);
   b_lin = toSRGB(b_lin);
-  return [Math.round(clamp(r) * 255), Math.round(clamp(g) * 255), Math.round(clamp(b_lin) * 255)];
+  return [
+    Math.round(clamp(r) * 255),
+    Math.round(clamp(g) * 255),
+    Math.round(clamp(b_lin) * 255),
+  ];
 };
 
 const parseOklch = (s: string) => {
   try {
     const inside = s.substring(s.indexOf("(") + 1, s.lastIndexOf(")"));
-    const parts = inside.replace(/\s+\/.*$/, "").trim().split(/\s+/);
+    const parts = inside
+      .replace(/\s+\/.*$/, "")
+      .trim()
+      .split(/\s+/);
     if (parts.length < 3) return null;
     let L = parts[0];
     let C = parts[1];
@@ -153,7 +148,10 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
   // selected product tag for filtering charts/metrics. "Allproducts" shows everything
   const [selectedTag, setSelectedTag] = useState<string>("allproducts");
 
-  const normalizeAccount = (s: any) => String(s || "").toLowerCase().trim();
+  const normalizeAccount = (s: any) =>
+    String(s || "")
+      .toLowerCase()
+      .trim();
 
   // product tag options come from labeled accounts in the account store
   const labeledAccounts = useAccountStore((s) => s.labeledAccounts);
@@ -164,17 +162,20 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
       const key = String(p).toLowerCase().trim();
       if (key && !map.has(key)) map.set(key, String(p));
     });
-  return ["allproducts", ...Array.from(map.keys())].map((k) => ({ key: k, label: k === "allproducts" ? "All products" : map.get(k) || k }));
+    return ["allproducts", ...Array.from(map.keys())].map((k) => ({
+      key: k,
+      label: k === "allproducts" ? "All products" : map.get(k) || k,
+    }));
   }, [labeledAccounts]);
 
   // map product tag -> set of account strings (representative account identifiers used in tx.account)
   const accountsByProduct = useMemo(() => {
     const map: Record<string, Set<string>> = {};
     (labeledAccounts || []).forEach((acc) => {
-  const productRaw = (acc as any).product || "";
-  const product = String(productRaw).toLowerCase().trim();
-  if (!product) return;
-  if (!map[product]) map[product] = new Set<string>();
+      const productRaw = (acc as any).product || "";
+      const product = String(productRaw).toLowerCase().trim();
+      if (!product) return;
+      if (!map[product]) map[product] = new Set<string>();
       const txs = (acc as any).transactions || [];
       if (Array.isArray(txs) && txs.length > 0) {
         txs.forEach((tx: any) => {
@@ -195,17 +196,16 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
           // ignore encoding errors
         }
       }
-  const label = (acc as any).label;
-  if (label) map[product].add(normalizeAccount(label));
+      const label = (acc as any).label;
+      if (label) map[product].add(normalizeAccount(label));
     });
     return map;
   }, [labeledAccounts]);
 
-
   // filtered transactions used for computing metrics and charts
   const filteredTransactions = useMemo(() => {
-  const sel = String(selectedTag).toLowerCase().trim();
-  if (sel === "allproducts") return transactions;
+    const sel = String(selectedTag).toLowerCase().trim();
+    if (sel === "allproducts") return transactions;
     const accountsForTag = new Set<string>(
       Array.from(accountsByProduct[sel] || [])
     );
@@ -218,207 +218,16 @@ const FinancialDashboard: React.FC<{ transactions: Transaction[] }> = ({
         "";
       if (tag && String(tag).toLowerCase() === sel) return true;
       const accountNormalized = normalizeAccount((t as any).account);
-      if (accountNormalized && accountsForTag.has(accountNormalized)) return true;
+      if (accountNormalized && accountsForTag.has(accountNormalized))
+        return true;
       return false;
     });
   }, [transactions, selectedTag, accountsByProduct]);
 
-  const metrics = useMemo(() => {
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-
-  const currentMonthTxs = filteredTransactions.filter(
-      (t) =>
-        new Date(t.timestamp_ms) >= currentMonthStart &&
-        new Date(t.timestamp_ms) <= now
-    );
-  const prevMonthTxs = filteredTransactions.filter(
-      (t) =>
-        new Date(t.timestamp_ms) >= prevMonthStart &&
-        new Date(t.timestamp_ms) <= prevMonthEnd
-    );
-
-    const normalize = (s: string) =>
-      s
-        .toString()
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-
-    const txLabelSet = new Set(TX_LABELS.map((s) => normalize(s)));
-    const customLabelSet = new Set(CUSTOM_TX_LABELS.map((s) => normalize(s)));
-    const sentNorm = normalize(SENT_LABEL);
-
-    const isOffChainRevenue = (t: Transaction) => {
-      if (t.isCustom) return true;
-      const norm = normalize(t.label || "");
-      if (customLabelSet.has(norm)) return true;
-      // also treat explicit "grant" style label from TX_LABELS
-      if (txLabelSet.has(norm) && norm.includes("grant")) return true;
-      return false;
-    };
-
-    const isExpenseLabel = (t: Transaction) => {
-      const norm = normalize(t.label || "");
-      // consider canonical TX_LABELS and explicit sent label as expenses
-      return txLabelSet.has(norm) || norm === sentNorm;
-    };
-
-    const calculateMetrics = (txs: Transaction[]) => {
-      // classify by isCustom flag: index-derived txs (no isCustom) are on-chain; custom txs or labeled ones are off-chain
-      const onChainRevenue = txs
-        .filter((t) => !t.isCustom)
-        .reduce((sum, t) => sum + t.amount, 0);
-      const offChainRevenue = txs
-        .filter((t) => isOffChainRevenue(t))
-        .reduce((sum, t) => sum + t.amount, 0);
-      const totalRevenue = onChainRevenue + offChainRevenue;
-      const totalExpenses = txs
-        .filter((t) => isExpenseLabel(t))
-        .reduce((sum, t) => sum + t.amount, 0);
-      const netProfit = totalRevenue + totalExpenses;
-      return {
-        totalRevenue,
-        totalExpenses,
-        netProfit,
-        onChainRevenue,
-        offChainRevenue,
-      };
-    };
-
-    const currentMetrics = calculateMetrics(currentMonthTxs);
-    const prevMetrics = calculateMetrics(prevMonthTxs);
-
-    const calculatePercentageChange = (current: number, previous: number) => {
-      if (previous === 0) return current > 0 ? Infinity : 0;
-      return ((current - previous) / previous) * 100;
-    };
-
-    const totalRevenueChange = calculatePercentageChange(
-      currentMetrics.totalRevenue,
-      prevMetrics.totalRevenue
-    );
-    const totalExpensesChange = calculatePercentageChange(
-      currentMetrics.totalExpenses,
-      prevMetrics.totalExpenses
-    );
-    const netProfitChange = calculatePercentageChange(
-      currentMetrics.netProfit,
-      prevMetrics.netProfit
-    );
-
-    const totalOnChainRevenue = filteredTransactions
-      .filter((t) => !t.isCustom)
-      .reduce((sum, t) => sum + t.amount, 0);
-    const totalOffChainRevenue = filteredTransactions
-      .filter(
-        (t) =>
-          t.isCustom ||
-          (t.label || "").toString().toLowerCase().includes("off-chain") ||
-          (t.label || "").toString().toLowerCase().includes("grant")
-      )
-      .reduce((sum, t) => sum + t.amount, 0);
-    const totalRevenue = totalOnChainRevenue + totalOffChainRevenue;
-    const totalExpenses = filteredTransactions
-      .filter((t) => {
-        const lbl = (t.label || "").toString().toLowerCase();
-        return (
-          lbl.includes("payment") ||
-          lbl.includes("expense") ||
-          lbl.includes("expenses")
-        );
-      })
-      .reduce((sum, t) => sum + t.amount, 0);
-    const netProfit = totalRevenue + totalExpenses;
-    const totalOnChainTransactions = filteredTransactions.filter(
-      (t) => !t.isCustom
-    ).length;
-
-    const revenueByMonth: { [key: string]: number } = {};
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthName = d.toLocaleString("default", { month: "short" });
-      revenueByMonth[monthName] = 0;
-    }
-
-  filteredTransactions.forEach((t) => {
-      const txDate = new Date(t.timestamp_ms);
-      if (
-        txDate.getFullYear() === now.getFullYear() &&
-        txDate.getMonth() >= now.getMonth() - 5 &&
-        txDate.getMonth() <= now.getMonth()
-      ) {
-        const monthName = txDate.toLocaleString("default", { month: "short" });
-        // count only index-derived (on-chain) transactions for the on-chain revenue chart
-        if (!t.isCustom) {
-          revenueByMonth[monthName] =
-            (revenueByMonth[monthName] || 0) + t.amount;
-        }
-      }
-    });
-    const onChainRevenueChartData = Object.keys(revenueByMonth).map(
-      (month) => ({ name: month, "On-Chain Revenue": revenueByMonth[month] })
-    );
-
-    const totalRevenueBreakdownData = [
-      { name: "On-Chain Revenue", value: totalOnChainRevenue },
-      { name: "Off-Chain Revenue", value: totalOffChainRevenue },
-    ];
-
-    const onChainRevenueTxs = filteredTransactions.filter(
-      (t) => !t.isCustom && (t.amount || 0) > 0
-    );
-    const monthlyFrequency = onChainRevenueTxs.reduce((acc, t) => {
-      const monthName = new Date(t.timestamp_ms).toLocaleString("default", {
-        month: "short",
-        year: "2-digit",
-      });
-      acc[monthName] = (acc[monthName] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const monthlyFrequencyData = Object.keys(monthlyFrequency).map((name) => ({
-      name,
-      count: monthlyFrequency[name],
-    }));
-
-    const getWeekNumber = (d: Date) => {
-      d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-      d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-      var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-      var weekNo = Math.ceil(
-        ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
-      );
-      return weekNo;
-    };
-
-    const weeklyFrequency = onChainRevenueTxs.reduce((acc, t) => {
-      const date = new Date(t.timestamp_ms);
-      const week = `W${getWeekNumber(date)}`;
-      acc[week] = (acc[week] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const weeklyFrequencyData = Object.keys(weeklyFrequency)
-      .sort()
-      .map((name) => ({ name, count: weeklyFrequency[name] }));
-
-    return {
-      totalRevenue,
-      totalRevenueChange,
-      netProfit,
-      netProfitChange,
-      totalExpenses,
-      totalExpensesChange,
-      totalOnChainTransactions,
-      totalOnChainRevenue,
-      totalOffChainRevenue,
-      onChainRevenueChartData,
-      totalRevenueBreakdownData,
-      monthlyFrequencyData,
-      weeklyFrequencyData,
-    };
-  }, [filteredTransactions]);
+  const metrics: FinancialMetrics = useMemo(
+    () => computeFinancialMetrics(filteredTransactions),
+    [filteredTransactions]
+  );
 
   const COLORS = ["hsl(222.2, 47.4%, 11.2%)", "hsl(173, 80%, 40%)"];
 
